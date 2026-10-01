@@ -308,15 +308,15 @@ def _practice_handoff(session: Session, instance, host: str = "127.0.0.1") -> di
 
     value["+0x78"] = True
     record = value["+0x80"]
-    # The handoff begins with the same 16-byte account-id representation used by login/player
-    # records, followed by the low u64 that the consumer compares with the local player id.
-    record["+0x0"] = session.account.account
-    # The 20600 consumer compares +0x10 with the local player/account id before it creates the
-    # transport connection. This is the same low u64 sent in login 20500/account records.
-    record["+0x10"] = session.account.account_lo
+    # Controlled A/B test: these are the exact pre-crypto markers from the historical handoff
+    # that made the 1.74 client emit UDP. Keep the real endpoint and AES-GCM material below so
+    # this run isolates the identity/transport trio from the crypto fields.
+    record["+0x0"]["+0x0"] = 0x1111111111111111
+    record["+0x0"]["+0x8"] = 0x2222222222222222
+    record["+0x10"] = 0x3333333333333333
     record["+0x18"] = int.from_bytes(instance.client_tx_nonce, "little")
     record["+0x20"] = int.from_bytes(instance.client_rx_nonce, "little")
-    record["+0x28"] = instance.transport_id
+    record["+0x28"] = 0x28282828
     # The 20600 consumer combines this byte array with +0x2C and formats a host:port string.
     record["+0x2C"] = instance.port
     record["+0x2E"] = list(encoded_host + b"\x00")
