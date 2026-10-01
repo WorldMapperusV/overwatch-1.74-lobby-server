@@ -75,8 +75,9 @@ class LobbyMatchTests(unittest.TestCase):
         self.assertIs(value["+0x78"], True)
         self.assertEqual(value["+0x80"]["+0x2C"], port)
         record = value["+0x80"]
-        self.assertEqual(record["+0x28"], 2)
-        self.assertEqual(bytes(record["+0x2E"][:4]), bytes((127, 0, 0, 1)))
+        host = bytes(record["+0x2E"]).split(b"\\x00", 1)[0].decode("ascii")
+        self.assertEqual(host, "127.0.0.1")
+        self.assertEqual(record["+0x28"], 0)
         self.assertEqual(bytes(record["+0x6E"]), bytes(64))
         instance = next(iter(self.matches.instances.values()))
         self.assertEqual(record["+0x18"], int.from_bytes(instance.client_tx_nonce, "little"))
