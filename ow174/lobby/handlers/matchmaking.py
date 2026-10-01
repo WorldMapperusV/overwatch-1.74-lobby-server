@@ -300,12 +300,9 @@ def _practice_handoff(session: Session, instance, host: str = "127.0.0.1") -> di
     8-byte nonce base plus a 32-byte AES-256 key.
     """
     value = session.server.schemas.empty(HANDOFF, 20600)
-    try:
-        ipv4 = bytes(int(part) for part in host.split("."))
-    except (TypeError, ValueError):
-        raise ValueError("Practice Range handoff currently requires an IPv4 literal") from None
-    if len(ipv4) != 4:
-        raise ValueError("Practice Range handoff currently requires an IPv4 literal")
+    encoded_host = host.encode("ascii")
+    if len(encoded_host) >= 64:
+        raise ValueError("handoff host must fit in the 64-byte endpoint field")
     if not 0 <= instance.port <= 0xFFFF:
         raise ValueError("handoff port must fit in the nested +0x2C u16")
 
@@ -313,11 +310,9 @@ def _practice_handoff(session: Session, instance, host: str = "127.0.0.1") -> di
     record = value["+0x80"]
     record["+0x18"] = int.from_bytes(instance.client_tx_nonce, "little")
     record["+0x20"] = int.from_bytes(instance.client_rx_nonce, "little")
-    # The client endpoint object uses discriminator 2 for IPv4. These handoff fields are fixed
-    # byte arrays, not JAM strings, so provide the raw network-order IPv4 octets.
-    record["+0x28"] = 2
+    # The 20600 consumer combines this byte array with +0x2C and formats a host:port string.
     record["+0x2C"] = instance.port
-    record["+0x2E"] = list(ipv4)
+    record["+0x2E"] = list(encoded_host + b"\x00")
     record["+0xAE"] = list(instance.client_tx_key)
     record["+0xCE"] = list(instance.client_rx_key)
     return value
