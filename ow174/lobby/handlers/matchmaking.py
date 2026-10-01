@@ -292,40 +292,28 @@ def create_game(session: Session, value: dict) -> None:
         session.log(f"[MM] Unknown create-game request: {to_jsonable(value)}")
 
 
-def _practice_handoff(session: Session, port: int, host: str = "127.0.0.1") -> dict:
-    """Build a diagnostic 20600 endpoint assignment for handoff research.
+def _practice_handoff(session: Session, instance, host: str = "127.0.0.1") -> dict:
+    """Build the 20600 endpoint assignment and directional AES-GCM transport credentials.
 
-    Runtime analysis confirms that the handoff consumer actively reads the field at nested +0x2C.
-    The schema identifies it as a u16, so the local UDP port remains there. Unknown identifier and
-    token fields use conspicuous non-zero sentinels so each can be recognized during later tracing.
-    These values are research markers, not claimed protocol constants.
+    Runtime analysis of the 1.74 client shows that nested +0x18/+0xAE initialize the client's
+    transmit authenticator and +0x20/+0xCE initialize its receive authenticator. Each pair is an
+    8-byte nonce base plus a 32-byte AES-256 key.
     """
     value = session.server.schemas.empty(HANDOFF, 20600)
     encoded_host = host.encode("ascii")
     if len(encoded_host) >= 64:
         raise ValueError("handoff host must fit in the 64-byte endpoint field")
-    if not 0 <= port <= 0xFFFF:
+    if not 0 <= instance.port <= 0xFFFF:
         raise ValueError("handoff port must fit in the nested +0x2C u16")
 
     value["+0x78"] = True
     record = value["+0x80"]
-
-    # Distinct markers for the currently-unknown identifiers. Keeping each value different makes
-    # references to these fields obvious in future runtime captures.
-    record["+0x0"]["+0x0"] = 0x1111111111111111
-    record["+0x0"]["+0x8"] = 0x2222222222222222
-    record["+0x10"] = 0x3333333333333333
-    record["+0x18"] = 0x4444444444444444
-    record["+0x20"] = 0x5555555555555555
-    record["+0x28"] = 0x28282828
-
-    record["+0x2C"] = port
+    record["+0x18"] = int.from_bytes(instance.client_tx_nonce, "little")
+    record["+0x20"] = int.from_bytes(instance.client_rx_nonce, "little")
+    record["+0x2C"] = instance.port
     record["+0x2E"] = list(encoded_host + b"\x00")
-
-    # The final two fixed 32-byte fields are also unknown. Mark them independently instead of
-    # leaving an all-zero payload that is difficult to distinguish in a memory capture.
-    record["+0xAE"] = [0xAA] * 32
-    record["+0xCE"] = [0xCC] * 32
+    record["+0xAE"] = list(instance.client_tx_key)
+    record["+0xCE"] = list(instance.client_rx_key)
     return value
 
 
@@ -341,15 +329,15 @@ def practice_state_ack(session: Session, value: dict) -> None:
             f"[MM] practice: state 4 acknowledged (52903); "
             f"instance {pending['instance']} UDP 127.0.0.1:{pending['port']} is ready for handoff research"
         )
-        handoff = _practice_handoff(session, pending["port"])
-        session.log(
-            "[MM] practice: diagnostic 20600 payload "
-            + json.dumps(to_jsonable(handoff), ensure_ascii=False)
-        )
+        instance = session.server.matches.instances.get(str(session.conn_id))
+        if instance is None or instance.directory.name != pending["instance"]:
+            session.log("[MM] practice: local instance disappeared before 20600 handoff")
+            session.practice_state_pending = None
+            return
+        handoff = _practice_handoff(session, instance)
+        session.log("[MM] practice: 20600 includes directional AES-GCM transport credentials")
         if session.send(HANDOFF, 20600, handoff):
-            session.log(
-                f"[MM] practice: diagnostic 20600 handoff sent to 127.0.0.1:{pending['port']}"
-            )
+            session.log(f"[MM] practice: 20600 handoff sent to 127.0.0.1:{pending['port']}")
         else:
             session.log("[MM] practice: client did not announce the 20600 handoff protocol")
     else:
