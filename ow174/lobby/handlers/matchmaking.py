@@ -15,6 +15,7 @@ from ow174.jam.groups import (
     GAME_STATE_ACK,
     GROUP_FINDER,
     GROUPS,
+    HANDOFF,
     MATCHMAKE,
     PASSES,
     QUEUE,
@@ -291,6 +292,23 @@ def create_game(session: Session, value: dict) -> None:
         session.log(f"[MM] Unknown create-game request: {to_jsonable(value)}")
 
 
+def _practice_handoff(session: Session, port: int, host: str = "127.0.0.1") -> dict:
+    """Build the smallest schema-valid 20600 endpoint assignment for handoff research.
+
+    The 20600 record contains two fixed 64-byte fields. This experiment uses the first one as the
+    endpoint text and the adjacent u16 as its port; all unknown identifiers/tokens remain zero.
+    """
+    value = session.server.schemas.empty(HANDOFF, 20600)
+    encoded_host = host.encode("ascii")
+    if len(encoded_host) >= 64:
+        raise ValueError("handoff host must fit in the 64-byte endpoint field")
+    value["+0x78"] = True
+    record = value["+0x80"]
+    record["+0x2C"] = port
+    record["+0x2E"] = list(encoded_host + b"\x00")
+    return value
+
+
 @routes.on(GAME_STATE_ACK, 52903)
 def practice_state_ack(session: Session, value: dict) -> None:
     pending = getattr(session, "practice_state_pending", None)
@@ -303,6 +321,12 @@ def practice_state_ack(session: Session, value: dict) -> None:
             f"[MM] practice: state 4 acknowledged (52903); "
             f"instance {pending['instance']} UDP 127.0.0.1:{pending['port']} is ready for handoff research"
         )
+        if session.send(HANDOFF, 20600, _practice_handoff(session, pending["port"])):
+            session.log(
+                f"[MM] practice: experimental 20600 handoff sent to 127.0.0.1:{pending['port']}"
+            )
+        else:
+            session.log("[MM] practice: client did not announce the 20600 handoff protocol")
     else:
         session.log(f"[MM] practice: state 4 rejected (52903): {acknowledged}")
     session.practice_state_pending = None
