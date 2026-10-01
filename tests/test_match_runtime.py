@@ -37,6 +37,37 @@ class MatchRuntimeTests(unittest.TestCase):
         self.assertEqual(data["hex"], "72657365617263682d70726f6265")
         self.assertFalse(self.manager.snapshot()[0]["protocol_ready"])
 
+    def test_authenticated_control_handshake_reaches_transport_ready(self):
+        instance = self.manager.request("practice", "Alpha", 0, activity="practice")
+        protocol = importlib.import_module("ow174.matches.instance")
+        first = protocol._control_frame(
+            instance.client_tx_nonce, instance.client_tx_key, 0, 0x01
+        )
+        with socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as sock:
+            sock.settimeout(2)
+            sock.sendto(first, ("127.0.0.1", instance.port))
+            response, _ = sock.recvfrom(1024)
+            self.assertEqual(len(response), 34)
+            self.assertEqual(response[0x20], 0x03)
+            self.assertTrue(
+                protocol._verify_control_frame(
+                    response, instance.client_rx_nonce, instance.client_rx_key
+                )
+            )
+            final = protocol._control_frame(
+                instance.client_tx_nonce, instance.client_tx_key, 1, 0x02
+            )
+            sock.sendto(final, ("127.0.0.1", instance.port))
+
+        deadline = time.monotonic() + 2
+        while time.monotonic() < deadline and not self.manager.snapshot()[0]["protocol_ready"]:
+            time.sleep(0.02)
+        state = self.manager.snapshot()[0]
+        self.assertTrue(state["protocol_ready"])
+        self.assertEqual(state["state"], "transport-ready")
+        self.assertGreaterEqual(state["authenticated_packets"], 2)
+        self.assertGreaterEqual(state["handshake_responses"], 1)
+
     def test_separate_sessions_get_separate_processes_and_cancel_is_scoped(self):
         a = self.manager.request("a", "Alpha", 1)
         b = self.manager.request("b", "Beta", 1)
