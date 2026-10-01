@@ -9,7 +9,17 @@ import json
 from ow174.content import passes
 from ow174.content.queue import PASS_ROLES, PICKING, ROLE_NUMBERS, SEARCHING, wait_times
 from ow174.content.ranked import ROLES
-from ow174.jam.groups import GAME_REQUEST, GROUP_FINDER, GROUPS, MATCHMAKE, PASSES, QUEUE, QUEUE_WAITS
+from ow174.jam.groups import (
+    GAME_REQUEST,
+    GAME_STATE,
+    GAME_STATE_ACK,
+    GROUP_FINDER,
+    GROUPS,
+    MATCHMAKE,
+    PASSES,
+    QUEUE,
+    QUEUE_WAITS,
+)
 from ow174.jam.values import to_jsonable
 from ow174.lobby.router import Router
 from ow174.lobby.session import Session
@@ -26,6 +36,8 @@ DECLINE = 44105  # Decline on that banner
 PASS_ROLE = 44106  # {role numbers}: the role to spend a priority pass on, sent after 44103
 CHANGE_ROLES = 44107  # Change Role on the role screen, once the member is ready
 PRACTICE_RANGE = (2, 4)  # a create-game request with kind 2 and flags 4
+PRACTICE_SEARCH_STATE = 4
+PRACTICE_STATE_TOKEN = 0  # verified by tools/probe_practice.py
 
 
 def _mode_guid(value: dict) -> int:
@@ -242,25 +254,71 @@ def _role_names(chosen: list[int]) -> str:
     return ", ".join(ROLES[ROLE_NUMBERS[number]] for number in chosen) or "none"
 
 
+def _practice_state(session: Session, state: int, token: int = PRACTICE_STATE_TOKEN) -> dict:
+    """Build the 53000 activity-state record proven by tools/probe_practice.py."""
+    value = session.server.schemas.empty(GAME_STATE, 53000)
+    value["+0x78"]["+0x60"] = state
+    value["+0xE8"] = token
+    return value
+
+
 @routes.on(GAME_REQUEST, 24000)
 def create_game(session: Session, value: dict) -> None:
     if (value.get("+0x78"), value.get("+0xA8")) == PRACTICE_RANGE:
         # The Practice Range request carries a creation kind, not a mode GUID.
-        _allocate_game(session, 0, "practice")
+        instance = _allocate_game(session, 0, "practice")
+        if instance is None:
+            return
+        # Research probe established that state 4 is accepted by this client and answered by 52903.
+        # This is only the pre-handoff transition; it does not claim that a playable match starts.
+        session.practice_state_pending = {
+            "instance": instance.directory.name,
+            "port": instance.port,
+            "token": PRACTICE_STATE_TOKEN,
+        }
+        if session.send(
+            GAME_STATE,
+            53000,
+            _practice_state(session, PRACTICE_SEARCH_STATE),
+        ):
+            session.log(
+                f"[MM] practice: sent state {PRACTICE_SEARCH_STATE} (53000); waiting for 52903"
+            )
+        else:
+            session.practice_state_pending = None
+            session.log("[MM] practice: client did not announce the 53000 state protocol")
     else:
         session.log(f"[MM] Unknown create-game request: {to_jsonable(value)}")
 
 
-def _allocate_game(session: Session, mode: int, activity: str) -> None:
+@routes.on(GAME_STATE_ACK, 52903)
+def practice_state_ack(session: Session, value: dict) -> None:
+    pending = getattr(session, "practice_state_pending", None)
+    acknowledged = value.get("+0x78")
+    if pending is None:
+        session.log(f"[MM] State acknowledgement (52903) without pending Practice Range: {acknowledged}")
+        return
+    if acknowledged is True:
+        session.log(
+            f"[MM] practice: state 4 acknowledged (52903); "
+            f"instance {pending['instance']} UDP 127.0.0.1:{pending['port']} is ready for handoff research"
+        )
+    else:
+        session.log(f"[MM] practice: state 4 rejected (52903): {acknowledged}")
+    session.practice_state_pending = None
+
+
+def _allocate_game(session: Session, mode: int, activity: str):
     matches = session.server.matches
     if matches is None:
         session.log("[MM] Game instances are off (--game-port 0)")
-        return
+        return None
     instance = matches.request(session.conn_id, session.account.name, mode, activity)
     session.log(
         f"[MM] {activity}: instance {instance.directory.name}, PID {instance.process.pid}, "
         f"UDP 127.0.0.1:{instance.port}, waiting for the game client"
     )
+    return instance
 
 
 # The group finder. The client sends 52200-52205 (9529F0ED) and gets its answers in 52300-52302
