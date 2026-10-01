@@ -316,6 +316,7 @@ def _practice_handoff(session: Session, instance, host: str = "127.0.0.1") -> di
     record["+0x10"] = session.account.account_lo
     record["+0x18"] = int.from_bytes(instance.client_tx_nonce, "little")
     record["+0x20"] = int.from_bytes(instance.client_rx_nonce, "little")
+    record["+0x28"] = instance.transport_id
     # The 20600 consumer combines this byte array with +0x2C and formats a host:port string.
     record["+0x2C"] = instance.port
     record["+0x2E"] = list(encoded_host + b"\x00")
