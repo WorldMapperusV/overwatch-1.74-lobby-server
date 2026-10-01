@@ -80,6 +80,7 @@ class LobbyMatchTests(unittest.TestCase):
         self.assertEqual(record["+0x28"], 0)
         self.assertEqual(bytes(record["+0x6E"]), bytes(64))
         instance = next(iter(self.matches.instances.values()))
+        self.assertEqual(record["+0x10"], self.session.account.account_lo)
         self.assertEqual(record["+0x18"], int.from_bytes(instance.client_tx_nonce, "little"))
         self.assertEqual(record["+0x20"], int.from_bytes(instance.client_rx_nonce, "little"))
         self.assertEqual(bytes(record["+0xAE"]), instance.client_tx_key)
