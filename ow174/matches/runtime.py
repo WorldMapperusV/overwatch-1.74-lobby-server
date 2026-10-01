@@ -23,6 +23,7 @@ class MatchInstance:
     directory: Path
     process: subprocess.Popen
     port: int
+    transport_id: int
     client_tx_nonce: bytes
     client_tx_key: bytes
     client_rx_nonce: bytes
@@ -109,6 +110,9 @@ class MatchManager:
             port = self._free_port()
             directory = self.directory / uuid.uuid4().hex
             directory.mkdir(parents=True)
+            # +0x28 is carried into the client connection object as a transport identifier. The
+            # client did not open UDP when it was zero, so allocate a stable nonzero id per instance.
+            transport_id = secrets.randbits(32) or 1
             # 1.74's 20600 handoff carries two directional AES-GCM contexts. Each context is an
             # 8-byte nonce base followed by a 32-byte AES-256 key.
             client_tx_nonce = secrets.token_bytes(8)
@@ -141,6 +145,7 @@ class MatchManager:
                 directory,
                 process,
                 port,
+                transport_id,
                 client_tx_nonce,
                 client_tx_key,
                 client_rx_nonce,
