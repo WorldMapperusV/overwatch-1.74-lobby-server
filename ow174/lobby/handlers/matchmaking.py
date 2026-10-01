@@ -308,6 +308,9 @@ def _practice_handoff(session: Session, instance, host: str = "127.0.0.1") -> di
 
     value["+0x78"] = True
     record = value["+0x80"]
+    # The handoff begins with the same 16-byte account-id representation used by login/player
+    # records, followed by the low u64 that the consumer compares with the local player id.
+    record["+0x0"] = session.account.account
     # The 20600 consumer compares +0x10 with the local player/account id before it creates the
     # transport connection. This is the same low u64 sent in login 20500/account records.
     record["+0x10"] = session.account.account_lo
