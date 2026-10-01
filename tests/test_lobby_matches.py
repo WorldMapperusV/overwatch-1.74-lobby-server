@@ -17,6 +17,7 @@ QUEUE = 0x1C6EC712
 CUSTOM = 0xA6E53896
 GAME_STATE = 0x1CFB43CD
 GAME_STATE_ACK = 0x888716D3
+HANDOFF = 0x074DAD18
 
 
 class LobbyMatchTests(unittest.TestCase):
@@ -45,7 +46,7 @@ class LobbyMatchTests(unittest.TestCase):
         self.logs = []
         self.sent = []
         self.session.log = lambda message, *args: self.logs.append(message)
-        self.session.announce([QUEUE, CUSTOM, GAME_STATE_ACK, GAME_STATE])
+        self.session.announce([QUEUE, CUSTOM, GAME_STATE_ACK, GAME_STATE, HANDOFF])
         self.session.send = lambda crc, msg, value: self.sent.append((crc, msg, value)) or True
 
     def test_captured_practice_request_allocates_real_server(self):
@@ -61,12 +62,20 @@ class LobbyMatchTests(unittest.TestCase):
         self.assertEqual(value["+0xE8"], 0)
         self.assertIsNotNone(self.session.practice_state_pending)
 
-    def test_practice_state_ack_is_routed_and_clears_pending_transition(self):
+    def test_practice_state_ack_is_routed_and_sends_experimental_handoff(self):
         self.session.dispatch(2, 0, bytes.fromhex("020004000000"))
+        port = self.matches.snapshot()[0]["port"]
         body = self.schemas.encode(GAME_STATE_ACK, 52903, {"+0x78": True})
         self.session.dispatch(3, 0, body)
         self.assertIsNone(self.session.practice_state_pending)
         self.assertTrue(any("state 4 acknowledged" in line for line in self.logs))
+        self.assertEqual(len(self.sent), 2)
+        crc, msg, value = self.sent[1]
+        self.assertEqual((crc, msg), (HANDOFF, 20600))
+        self.assertIs(value["+0x78"], True)
+        self.assertEqual(value["+0x80"]["+0x2C"], port)
+        host = bytes(value["+0x80"]["+0x2E"]).split(b"\\0", 1)[0].decode("ascii")
+        self.assertEqual(host, "127.0.0.1")
 
     def test_search_and_cancel_messages_start_then_stop_worker(self):
         # Captured Mystery Heroes request and cancellation have identical bodies.
