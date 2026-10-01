@@ -15,6 +15,8 @@ from ow174.matches.runtime import MatchManager
 
 QUEUE = 0x1C6EC712
 CUSTOM = 0xA6E53896
+GAME_STATE = 0x1CFB43CD
+GAME_STATE_ACK = 0x888716D3
 
 
 class LobbyMatchTests(unittest.TestCase):
@@ -40,8 +42,11 @@ class LobbyMatchTests(unittest.TestCase):
         self.session = Session(server, None, None, 5)
         self.session.account = account
         self.session.logged_in = True
-        self.session.log = lambda *args: None
-        self.session.announce([QUEUE, CUSTOM])
+        self.logs = []
+        self.sent = []
+        self.session.log = lambda message, *args: self.logs.append(message)
+        self.session.announce([QUEUE, CUSTOM, GAME_STATE_ACK, GAME_STATE])
+        self.session.send = lambda crc, msg, value: self.sent.append((crc, msg, value)) or True
 
     def test_captured_practice_request_allocates_real_server(self):
         self.session.dispatch(2, 0, bytes.fromhex("020004000000"))
@@ -49,6 +54,19 @@ class LobbyMatchTests(unittest.TestCase):
         self.assertEqual(len(states), 1, "24000 must reach the instance allocator")
         self.assertEqual(states[0]["player"], "Alpha")
         self.assertEqual(states[0]["state"], "listening")
+        self.assertEqual(len(self.sent), 1)
+        crc, msg, value = self.sent[0]
+        self.assertEqual((crc, msg), (GAME_STATE, 53000))
+        self.assertEqual(value["+0x78"]["+0x60"], 4)
+        self.assertEqual(value["+0xE8"], 0)
+        self.assertIsNotNone(self.session.practice_state_pending)
+
+    def test_practice_state_ack_is_routed_and_clears_pending_transition(self):
+        self.session.dispatch(2, 0, bytes.fromhex("020004000000"))
+        body = self.schemas.encode(GAME_STATE_ACK, 52903, {"+0x78": True})
+        self.session.dispatch(3, 0, body)
+        self.assertIsNone(self.session.practice_state_pending)
+        self.assertTrue(any("state 4 acknowledged" in line for line in self.logs))
 
     def test_search_and_cancel_messages_start_then_stop_worker(self):
         # Captured Mystery Heroes request and cancellation have identical bodies.
