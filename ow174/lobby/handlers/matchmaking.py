@@ -314,14 +314,15 @@ def _practice_handoff(session: Session, instance, host: str = "127.0.0.1") -> di
     record["+0x0"]["+0x0"] = 0x1111111111111111
     record["+0x0"]["+0x8"] = 0x2222222222222222
     record["+0x10"] = 0x3333333333333333
-    record["+0x18"] = int.from_bytes(instance.client_tx_nonce, "little")
-    record["+0x20"] = int.from_bytes(instance.client_rx_nonce, "little")
+    record["+0x18"] = 0x4444444444444444
+    record["+0x20"] = 0x5555555555555555
     record["+0x28"] = 0x28282828
-    # The 20600 consumer combines this byte array with +0x2C and formats a host:port string.
+    # The endpoint remains the live worker endpoint; every other populated handoff field now
+    # matches the historical diagnostic payload that caused the client to emit UDP.
     record["+0x2C"] = instance.port
     record["+0x2E"] = list(encoded_host + b"\x00")
-    record["+0xAE"] = list(instance.client_tx_key)
-    record["+0xCE"] = list(instance.client_rx_key)
+    record["+0xAE"] = [0xAA] * 32
+    record["+0xCE"] = [0xCC] * 32
     return value
 
 
