@@ -3,6 +3,7 @@
 import json
 import math
 import os
+import secrets
 import subprocess
 import sys
 import threading
@@ -22,6 +23,10 @@ class MatchInstance:
     directory: Path
     process: subprocess.Popen
     port: int
+    client_tx_nonce: bytes
+    client_tx_key: bytes
+    client_rx_nonce: bytes
+    client_rx_key: bytes
 
 
 def _stop_process(process: subprocess.Popen) -> None:
@@ -40,7 +45,17 @@ def _stop_process(process: subprocess.Popen) -> None:
         process.wait(timeout=2)
 
 
-def _instance_command(directory: Path, port: int, player: str, mode: int, activity: str) -> list[str]:
+def _instance_command(
+    directory: Path,
+    port: int,
+    player: str,
+    mode: int,
+    activity: str,
+    client_tx_nonce: bytes,
+    client_tx_key: bytes,
+    client_rx_nonce: bytes,
+    client_rx_key: bytes,
+) -> list[str]:
     return [
         sys.executable,
         "-B",
@@ -59,6 +74,14 @@ def _instance_command(directory: Path, port: int, player: str, mode: int, activi
         hex(mode),
         "--activity",
         activity,
+        "--client-tx-nonce",
+        client_tx_nonce.hex(),
+        "--client-tx-key",
+        client_tx_key.hex(),
+        "--client-rx-nonce",
+        client_rx_nonce.hex(),
+        "--client-rx-key",
+        client_rx_key.hex(),
         "--control-stdin",
     ]
 
@@ -86,16 +109,43 @@ class MatchManager:
             port = self._free_port()
             directory = self.directory / uuid.uuid4().hex
             directory.mkdir(parents=True)
+            # 1.74's 20600 handoff carries two directional AES-GCM contexts. Each context is an
+            # 8-byte nonce base followed by a 32-byte AES-256 key.
+            client_tx_nonce = secrets.token_bytes(8)
+            client_tx_key = secrets.token_bytes(32)
+            client_rx_nonce = secrets.token_bytes(8)
+            client_rx_key = secrets.token_bytes(32)
             with (directory / "process.log").open("wb") as log:
                 process = subprocess.Popen(
-                    _instance_command(directory, port, player, mode, activity),
+                    _instance_command(
+                        directory,
+                        port,
+                        player,
+                        mode,
+                        activity,
+                        client_tx_nonce,
+                        client_tx_key,
+                        client_rx_nonce,
+                        client_rx_key,
+                    ),
                     cwd=ROOT,
                     stdin=subprocess.PIPE,
                     stdout=log,
                     stderr=subprocess.STDOUT,
                     creationflags=subprocess.CREATE_NO_WINDOW if os.name == "nt" else 0,
                 )
-            instance = MatchInstance(key, player, mode, directory, process, port)
+            instance = MatchInstance(
+                key,
+                player,
+                mode,
+                directory,
+                process,
+                port,
+                client_tx_nonce,
+                client_tx_key,
+                client_rx_nonce,
+                client_rx_key,
+            )
             try:
                 self._wait_until_listening(instance)
             except BaseException:
