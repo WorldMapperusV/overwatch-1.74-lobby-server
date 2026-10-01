@@ -308,6 +308,9 @@ def _practice_handoff(session: Session, instance, host: str = "127.0.0.1") -> di
 
     value["+0x78"] = True
     record = value["+0x80"]
+    # The 20600 consumer compares +0x10 with the local player/account id before it creates the
+    # transport connection. This is the same low u64 sent in login 20500/account records.
+    record["+0x10"] = session.account.account_lo
     record["+0x18"] = int.from_bytes(instance.client_tx_nonce, "little")
     record["+0x20"] = int.from_bytes(instance.client_rx_nonce, "little")
     # The 20600 consumer combines this byte array with +0x2C and formats a host:port string.
