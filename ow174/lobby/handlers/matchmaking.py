@@ -323,10 +323,6 @@ def _practice_handoff(session: Session, instance, host: str = "127.0.0.1") -> di
     record["+0x2E"] = list(encoded_host + b"\x00")
     record["+0xAE"] = [0xAA] * 32
     record["+0xCE"] = [0xCC] * 32
-    # Activation-bit probe: +0xEE is the only explicit boolean in the nested 20600 record.
-    # The transport constructor has a boolean that selects initial state 0 vs state 1; static
-    # control flow around the obfuscated consumer is not reliable enough to rule this field out.
-    record["+0xEE"] = True
     return value
 
 
