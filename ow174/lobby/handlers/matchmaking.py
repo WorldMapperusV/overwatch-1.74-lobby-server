@@ -293,19 +293,39 @@ def create_game(session: Session, value: dict) -> None:
 
 
 def _practice_handoff(session: Session, port: int, host: str = "127.0.0.1") -> dict:
-    """Build the smallest schema-valid 20600 endpoint assignment for handoff research.
+    """Build a diagnostic 20600 endpoint assignment for handoff research.
 
-    The 20600 record contains two fixed 64-byte fields. This experiment uses the first one as the
-    endpoint text and the adjacent u16 as its port; all unknown identifiers/tokens remain zero.
+    Runtime analysis confirms that the handoff consumer actively reads the field at nested +0x2C.
+    The schema identifies it as a u16, so the local UDP port remains there. Unknown identifier and
+    token fields use conspicuous non-zero sentinels so each can be recognized during later tracing.
+    These values are research markers, not claimed protocol constants.
     """
     value = session.server.schemas.empty(HANDOFF, 20600)
     encoded_host = host.encode("ascii")
     if len(encoded_host) >= 64:
         raise ValueError("handoff host must fit in the 64-byte endpoint field")
+    if not 0 <= port <= 0xFFFF:
+        raise ValueError("handoff port must fit in the nested +0x2C u16")
+
     value["+0x78"] = True
     record = value["+0x80"]
+
+    # Distinct markers for the currently-unknown identifiers. Keeping each value different makes
+    # references to these fields obvious in future runtime captures.
+    record["+0x0"]["+0x0"] = 0x1111111111111111
+    record["+0x0"]["+0x8"] = 0x2222222222222222
+    record["+0x10"] = 0x3333333333333333
+    record["+0x18"] = 0x4444444444444444
+    record["+0x20"] = 0x5555555555555555
+    record["+0x28"] = 0x28282828
+
     record["+0x2C"] = port
     record["+0x2E"] = list(encoded_host + b"\x00")
+
+    # The final two fixed 32-byte fields are also unknown. Mark them independently instead of
+    # leaving an all-zero payload that is difficult to distinguish in a memory capture.
+    record["+0xAE"] = [0xAA] * 32
+    record["+0xCE"] = [0xCC] * 32
     return value
 
 
@@ -321,9 +341,14 @@ def practice_state_ack(session: Session, value: dict) -> None:
             f"[MM] practice: state 4 acknowledged (52903); "
             f"instance {pending['instance']} UDP 127.0.0.1:{pending['port']} is ready for handoff research"
         )
-        if session.send(HANDOFF, 20600, _practice_handoff(session, pending["port"])):
+        handoff = _practice_handoff(session, pending["port"])
+        session.log(
+            "[MM] practice: diagnostic 20600 payload "
+            + json.dumps(to_jsonable(handoff), ensure_ascii=False)
+        )
+        if session.send(HANDOFF, 20600, handoff):
             session.log(
-                f"[MM] practice: experimental 20600 handoff sent to 127.0.0.1:{pending['port']}"
+                f"[MM] practice: diagnostic 20600 handoff sent to 127.0.0.1:{pending['port']}"
             )
         else:
             session.log("[MM] practice: client did not announce the 20600 handoff protocol")
