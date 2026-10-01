@@ -62,7 +62,7 @@ class LobbyMatchTests(unittest.TestCase):
         self.assertEqual(value["+0xE8"], 0)
         self.assertIsNotNone(self.session.practice_state_pending)
 
-    def test_practice_state_ack_is_routed_and_sends_experimental_handoff(self):
+    def test_practice_state_ack_sends_transport_credentials(self):
         self.session.dispatch(2, 0, bytes.fromhex("020004000000"))
         port = self.matches.snapshot()[0]["port"]
         body = self.schemas.encode(GAME_STATE_ACK, 52903, {"+0x78": True})
@@ -76,6 +76,12 @@ class LobbyMatchTests(unittest.TestCase):
         self.assertEqual(value["+0x80"]["+0x2C"], port)
         host = bytes(value["+0x80"]["+0x2E"]).split(b"\\0", 1)[0].decode("ascii")
         self.assertEqual(host, "127.0.0.1")
+        instance = next(iter(self.matches.instances.values()))
+        record = value["+0x80"]
+        self.assertEqual(record["+0x18"], int.from_bytes(instance.client_tx_nonce, "little"))
+        self.assertEqual(record["+0x20"], int.from_bytes(instance.client_rx_nonce, "little"))
+        self.assertEqual(bytes(record["+0xAE"]), instance.client_tx_key)
+        self.assertEqual(bytes(record["+0xCE"]), instance.client_rx_key)
 
     def test_search_and_cancel_messages_start_then_stop_worker(self):
         # Captured Mystery Heroes request and cancellation have identical bodies.
