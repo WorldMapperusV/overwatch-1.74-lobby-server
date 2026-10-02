@@ -272,8 +272,8 @@ def owner_full_frame(cmfd: int, instances: list[Instance], entity_vars: dict[int
 
 
 def soldier_body_roots_probe(cmfd: int) -> BitWriter:
-    """Bisect root startup states: first half crashed, so test 0033 + 004B only."""
-    enabled = {0x0033, 0x004B}
+    """Bisect root startup states: 0033 + 004B crashed, so isolate 0033."""
+    enabled = {0x0033}
     instances = [
         Instance(
             index,
