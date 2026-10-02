@@ -329,6 +329,10 @@ def soldier_body_roots_probe(cmfd: int) -> BitWriter:
         1769: Int(100),
         1770: Int(100),
     })
+    # The literal 0254 Entry writes are now live-proven safe.  Retry the Ability owner state on
+    # top of the initialized weapon baseline; this directly tests whether its previous crash was
+    # caused by the missing Entry context rather than the state bit itself.
+    weapon.active[31] = None
     return owner_full_frame(cmfd, instances, {})
 
 
