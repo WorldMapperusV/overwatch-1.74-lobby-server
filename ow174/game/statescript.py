@@ -268,17 +268,19 @@ def owner_full_frame(cmfd: int, instances: list[Instance], entity_vars: dict[int
 
 
 def soldier_body_roots_probe(cmfd: int) -> BitWriter:
-    """Probe 0033 owner bit 3 with every other root state off.
+    """Probe 0033 as a coherent creation-state set instead of isolated control states.
 
-    Descriptor-only roots are safe; 0033 owner bits 0, 1, and 2 are proven safe, while bit 5
-    crashes. Continue walking the serialized owner bits directly before trusting the reconstructed
-    startup map.
+    The extracted graph shows its primary Entry starts raw state 13, which in turn starts raw
+    BooleanSwitch states 4 and 10 and initialization paths for HealthPool states 0, 1, and 3.
+    After filtering client/server-only states those are owner bits 8, 3, 5, 0, 1, and 2.
+    Bits 3 and 5 crash when sent alone, so test the graph invariant they normally participate in.
     """
+    startup = {0, 1, 2, 3, 5, 8}
     instances = [
         Instance(
             index,
             graph,
-            active=({3: None} if graph.index == 0x0033 else {}),
+            active=({bit: None for bit in startup} if graph.index == 0x0033 else {}),
         )
         for index, graph in enumerate(SOLDIER_BODY_GRAPHS, start=1)
     ]
