@@ -341,21 +341,36 @@ def soldier_body_roots_probe(cmfd: int, body_entity: int) -> BitWriter:
     # state at raw state 140 / owner bit 40.  Attach only that real 004B -> 01CF SubScript and turn
     # on its remote-sync state; do not enable 01CF's speculative startup states yet.
     body = next(item for item in instances if item.graph.index == 0x004B)
-    child_id = 12
-    body.active[3] = subscript(child_id)
-    instances.append(
-        Instance(
-            child_id,
-            SOLDIER_CHILD_GRAPHS[0x01CF],
-            parent=(body.index, 3),
-            active={40: None},
-        )
+
+    # 004B's Entry starts five sibling SubScripts together.  Full owner frames are authoritative:
+    # omitting network-created siblings destroys them, so running 01CF alone leaves its HUD source
+    # outside the topology in which the retail graph starts it.  Restore all five immediate
+    # descriptors and their SubScript links, but keep the four non-HUD children state-free.  This
+    # isolates topology from the Stack/BooleanSwitch lifecycle classes that have crashed when
+    # asserted bare.
+    child_specs = (
+        (0, 12, 0x01C7),
+        (3, 13, 0x01CF),
+        (5, 14, 0x02C5),
+        (10, 15, 0x0B8B),
+        (18, 16, 0x0C7D),
     )
+    for parent_state, child_id, graph_index in child_specs:
+        body.active[parent_state] = subscript(child_id)
+        active = {40: None} if graph_index == 0x01CF else {}
+        instances.append(
+            Instance(
+                child_id,
+                SOLDIER_CHILD_GRAPHS[graph_index],
+                parent=(body.index, parent_state),
+                active=active,
+            )
+        )
 
     # Live result: connecting 01CF's remote-sync state removes 20E4's red "Unavailable" ultimate
     # marker.  That proves this is the real HUD feed.  01CF Entry initializes v7044/v8831=true;
     # reproduce those two literal instance values next while leaving all other 01CF states off.
-    hud_source = instances[-1]
+    hud_source = next(item for item in instances if item.graph.index == 0x01CF)
     hud_source.extra.update({7044: Bool(True), 8831: Bool(True)})
 
     # The reconstructed 01CF Entry-20 presenter set (bits 0,1,2,4,28 plus v2580/v1900)
