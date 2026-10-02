@@ -111,6 +111,7 @@ class Player:
         # Other players' bodies this player's client has: body -> False in the frame of its create.
         self.seen: dict[int, bool] = {}
         self.script = Stream(self.entity)  # the player entity's statescript: the controller
+        self.body_script = Stream(self.body)  # the possessed body's statescript
         self.mode_script = Stream(GAME_MODE_ENTITY)  # the game mode entity's variables: the countdown
         self.next_countdown = 0.0
         self.select_open = True
