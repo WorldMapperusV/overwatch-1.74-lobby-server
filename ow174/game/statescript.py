@@ -272,16 +272,12 @@ def owner_full_frame(cmfd: int, instances: list[Instance], entity_vars: dict[int
 
 
 def soldier_body_roots_probe(cmfd: int) -> BitWriter:
-    """Bisect root startup states: 0033 + 004B crashed, so isolate 0033."""
-    enabled = {0x0033}
+    """0033 startup-state bisection: the set {8,9,10} crashes; test bit 8 alone."""
     instances = [
         Instance(
             index,
             graph,
-            active=(
-                {bit: None for bit in SOLDIER_INITIAL_OWNER_BITS[graph.index]}
-                if graph.index in enabled else {}
-            ),
+            active=({8: None} if graph.index == 0x0033 else {}),
         )
         for index, graph in enumerate(SOLDIER_BODY_GRAPHS, start=1)
     ]
