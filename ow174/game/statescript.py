@@ -373,20 +373,9 @@ def soldier_body_roots_probe(cmfd: int, body_entity: int) -> BitWriter:
     hud_source = next(item for item in instances if item.graph.index == 0x01CF)
     hud_source.extra.update({7044: Bool(True), 8831: Bool(True)})
 
-    # 01CF's normal startup also creates 0E8F from raw state 32 (owner bit 22).  Unlike the
-    # other recursively reachable children, 0E8F's recorded initial owner set reaches a
-    # server-visible GameMessageEntry rather than beginning by asserting a bare Stack.  Restore
-    # this missing HUD-side descendant with exactly its extracted startup bit and no guessed vars.
-    hud_child_id = 17
-    hud_source.active[22] = subscript(hud_child_id)
-    instances.append(
-        Instance(
-            hud_child_id,
-            SOLDIER_CHILD_GRAPHS[0x0E8F],
-            parent=(hud_source.index, 32),
-            active={5: None},
-        )
-    )
+    # Do not assert 01CF state 32 / owner bit 22 here.  Live testing of the otherwise extracted
+    # 01CF -> 0E8F startup path crashes during Hero Selection, so this branch is lifecycle-dependent
+    # and is not safe to synthesize as an authoritative startup SubScript.
 
     # The reconstructed 01CF Entry-20 presenter set (bits 0,1,2,4,28 plus v2580/v1900)
     # still crashes.  Restore the only live-proven HUD path: 004B -> 01CF with remote-sync bit 40
