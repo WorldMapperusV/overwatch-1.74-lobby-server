@@ -479,7 +479,7 @@ def soldier_body_frame(cmfd: int) -> BitWriter:
     return owner_full_frame(cmfd, instances, {})
 
 
-def practice_mode_root_frame(cmfd: int) -> BitWriter:
+def practice_mode_root_frame(cmfd: int, fire_hud_event: bool = False) -> BitWriter:
     """Minimal Practice game-mode startup needed by the HUD lifecycle.
 
     13C0's ordinary Entry starts raw state 5 (a SubScript to 0CBB), but raw state 5 is omitted from
@@ -495,7 +495,7 @@ def practice_mode_root_frame(cmfd: int) -> BitWriter:
     events = Instance(
         2,
         PRACTICE_MODE_EVENTS,
-        active={34: None},
+        active={34: None} if fire_hud_event else {},
     )
     return owner_full_frame(cmfd, [root, events], {})
 
