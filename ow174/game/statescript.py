@@ -73,20 +73,16 @@ SOLDIER_004B_INITIAL_CHILDREN = (
 )
 
 # Soldier startup reconstruction from the extracted 1.74 graphs and the client reader.
-# +0xA0E1D0 accumulates the transmitted u16 Inst steps into an instance id, looks that id up, and if
-# it is absent allocates a slot and passes the transmitted id unchanged to +0xA0C510.  Therefore the
-# ids are SERVER-ASSIGNED; they do not have to match hidden retail allocation ids.  Parent descriptors
-# merely have to refer to ids in the same coherent topology.  This removes the last reason to capture
-# retail instance ids before constructing a full frame.
-#
-# Every non-client/non-server STUStatescriptEntry is a creation entry.  Some graphs deliberately have
-# more than one; all of their immediate action chains run.  Stop traversal when a state is entered --
-# following that state's output plugs would incorrectly include later transitions.
+# IMPORTANT: these are OWNER-FRAME bit indices, not raw graph state indices.  Owner frames omit
+# client-only and server-only states, so raw state numbers must be compacted before serialization.
+# This distinction was proven live on 0033: the old raw-state tuple (8, 9, 10) was incorrectly sent
+# as owner bits 8, 9, 10. Bit 8 happened to be harmless, while 9 and 10 selected unrelated Stack
+# states and crashed. Raw states 8 and 9 are client-only; raw state 10 is owner bit 5.
 SOLDIER_INITIAL_OWNER_BITS = {
-    0x0033: (8, 9, 10),
-    0x004B: (0, 3, 5, 10, 12, 13, 14, 15, 18, 19, 20, 22, 23, 24, 25, 27, 31, 33),
-    0x0043: (6, 15, 21), 0x0251: (0, 1),
-    0x0255: (2, 4, 6, 7, 8, 16, 17, 18, 22, 28),
+    0x0033: (5,),
+    0x004B: (0, 3, 5, 10, 12, 13, 14, 15, 18, 19, 20, 22, 23, 24, 25, 27, 31),
+    0x0043: (5, 14, 20), 0x0251: (0, 1),
+    0x0255: (2, 4, 6, 7, 8, 16, 17, 18, 22, 25),
     0x0257: (7, 11, 12, 13, 18), 0x0259: (0, 15, 17),
     0x091B: (0,), 0x08B6: (0, 1, 4, 7, 9, 10),
 }
@@ -106,16 +102,16 @@ SOLDIER_CHILD_GRAPHS = {
     0x0BF8: Graph(0x0BF8, 6, 0), 0x0E8F: Graph(0x0E8F, 7, 3),
 }
 SOLDIER_INITIAL_CHILD_OWNER_BITS = {
-    0x01C7: (4, 7, 10, 12, 13, 15, 16, 18, 21, 23, 24, 29, 35, 36, 38, 39, 40),
-    0x01CF: (4, 6, 8, 11, 13, 14, 17, 20, 22, 23, 24, 25, 32, 33),
-    0x02C5: (6,), 0x0B8B: (0,), 0x0C7D: (), 0x1463: (0,), 0x0BF8: (0,), 0x0E8F: (5,),
+    0x01C7: (4, 7, 9, 11, 14, 16, 17, 22, 28, 29, 31, 32, 33),
+    0x01CF: (1, 4, 6, 7, 10, 13, 15, 16, 22),
+    0x02C5: (), 0x0B8B: (), 0x0C7D: (), 0x1463: (0,), 0x0BF8: (0,), 0x0E8F: (5,),
 }
 
 # 03CF also creates definition-level weapon manager 0015 and primary weapon 0254.  Their graph sizes
 # are owner-state counts (client/server-only states removed) and compact INSTANCE sync-var counts.
 SOLDIER_WEAPON_MANAGER = Graph(0x0015, 35, 1)
 SOLDIER_PRIMARY_WEAPON = Graph(0x0254, 81, 23)
-SOLDIER_WEAPON_INITIAL_OWNER_BITS = {0x0015: (11, 27, 28, 29), 0x0254: (0, 31, 55, 60, 62, 76)}
+SOLDIER_WEAPON_INITIAL_OWNER_BITS = {0x0015: (11,), 0x0254: (0, 31, 56, 58, 72)}
 
 # Known literal Entry writes that a server-created instance must reproduce because its server Entry
 # actions do not execute locally: 0033 entity v32350=.3; 004B entity v14676=true; 0043 instance
@@ -272,12 +268,12 @@ def owner_full_frame(cmfd: int, instances: list[Instance], entity_vars: dict[int
 
 
 def soldier_body_roots_probe(cmfd: int) -> BitWriter:
-    """0033: bit 8 is proven safe; bits 9 and 10 crash alone. Keep only the validated state."""
+    """Test 0033 using the corrected raw-state -> owner-bit mapping: raw state 10 is owner bit 5."""
     instances = [
         Instance(
             index,
             graph,
-            active=({8: None} if graph.index == 0x0033 else {}),
+            active=({5: None} if graph.index == 0x0033 else {}),
         )
         for index, graph in enumerate(SOLDIER_BODY_GRAPHS, start=1)
     ]
