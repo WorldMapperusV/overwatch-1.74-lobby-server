@@ -352,10 +352,16 @@ def soldier_body_roots_probe(cmfd: int, body_entity: int) -> BitWriter:
     hud_source = instances[-1]
     hud_source.extra.update({7044: Bool(True), 8831: Bool(True)})
 
-    # v1900=body did not make owner bit 1 safe; the Stack still crashes, so that hypothesis is
-    # rejected.  Restore the proven HUD-sync baseline and keep v1900 out until its actual producer
-    # and the Stack's remaining dependencies are reconstructed.
-    return owner_full_frame(cmfd, instances, {})
+    # 01CF's HUD presenter path is now reconstructed from ordinary Entry node 20:
+    #   Entry -> BooleanSwitch raw 11 (owner bit 4)
+    #     true subgraph -> Stack raw 3/4/5 (owner bits 0/1/2)
+    #     subgraph action -> v2580=-1 -> UXPresenter raw 106 (owner bit 28)
+    # The previous bit-1 test was invalid because it serialized one nested Stack without its owning
+    # BooleanSwitch/siblings/presenter.  Reproduce this coherent active subgraph instead.  v1900 is
+    # the entity-scoped subject consumed by the switch and all three Stacks.
+    hud_source.active.update({0: None, 1: None, 2: None, 4: None, 28: None})
+    hud_source.extra[2580] = Int(-1)
+    return owner_full_frame(cmfd, instances, {1900: Entity(body_entity)})
 
 
 def soldier_body_frame(cmfd: int) -> BitWriter:
