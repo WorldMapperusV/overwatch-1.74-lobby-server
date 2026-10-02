@@ -68,7 +68,12 @@ def controller_of(mode_guid: int) -> Controller:
 
 
 def controller_frame(
-    controller: Controller, cmfd: int, select_open: bool, skins: bool = False, hide_assemble: bool = False
+    controller: Controller,
+    cmfd: int,
+    select_open: bool,
+    skins: bool = False,
+    hide_assemble: bool = False,
+    include_hud: bool = True,
 ):
     """The owner full frame for the player's entity: the controller (1) with hero select 288A (2) ->
     288B (3) under it, 13C1's HUD 20E4 (4), and 288A's team list entry 288D (the next index).
@@ -82,7 +87,7 @@ def controller_frame(
         host,
         screen,
     ]
-    if controller.hud_bit is not None:
+    if controller.hud_bit is not None and include_hud:
         active[controller.hud_bit] = subscript(4)
         # 20E4's client-only Entry gates its possession/HUD initialization branch on v23604,
         # and the main UX presenter reads the same condition.  The extracted graph has no writer
