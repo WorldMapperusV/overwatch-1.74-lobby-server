@@ -268,16 +268,16 @@ def owner_full_frame(cmfd: int, instances: list[Instance], entity_vars: dict[int
 
 
 def soldier_body_roots_probe(cmfd: int) -> BitWriter:
-    """Probe 0033 owner bit 1 with every other root state off.
+    """Probe 0033 owner bit 2 with every other root state off.
 
-    Descriptor-only roots are proven safe, while 0033 owner bit 0 survives and owner bit 5 crashes.  Do not trust the
-    reconstructed startup mapping yet: walk the serialized owner bits directly.
+    Descriptor-only roots are safe; 0033 owner bits 0 and 1 are proven safe, while bit 5 crashes.
+    Continue walking the serialized owner bits directly before trusting the reconstructed startup map.
     """
     instances = [
         Instance(
             index,
             graph,
-            active=({1: None} if graph.index == 0x0033 else {}),
+            active=({2: None} if graph.index == 0x0033 else {}),
         )
         for index, graph in enumerate(SOLDIER_BODY_GRAPHS, start=1)
     ]
