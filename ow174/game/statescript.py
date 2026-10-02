@@ -312,18 +312,62 @@ def owner_full_frame(cmfd: int, instances: list[Instance], entity_vars: dict[int
 
 
 def soldier_body_roots_probe(cmfd: int, body_entity: int) -> BitWriter:
-    """Control probe for the D530E0 sparse state-vector encoding.
+    """Stable Soldier HUD-sync baseline.
 
-    Use the previously live-safe 0033 owner bit 0 and no other state.  This separates the new
-    outer state-mask codec from the unresolved BooleanSwitch lifecycle/control semantics.
+    Keep the live-proven body/weapon descriptors, safe 0033 states, 0254 literal initialization,
+    and the 004B -> 01CF remote-sync chain that removes the HUD's unavailable marker.  Do not use
+    the still-unproven sparse state-vector/control experiment here.
     """
     instances = [
         Instance(index, graph)
         for index, graph in enumerate(SOLDIER_BODY_GRAPHS, start=1)
     ]
     health = next(item for item in instances if item.graph.index == 0x0033)
-    health.active[0] = None
-    return owner_full_frame(cmfd, instances, {}, state_controls=True)
+    for bit in (0, 1, 2, 4, 6, 7, 8, 11):
+        health.active[bit] = None
+
+    weapon_manager = Instance(10, SOLDIER_WEAPON_MANAGER)
+    weapon = Instance(11, SOLDIER_PRIMARY_WEAPON)
+    weapon.extra.update({
+        476: Int(20), 581: Float(1.5), 6884: Float(.511), 6885: Float(.1),
+        229: Int(0), 230: Int(0), 1769: Int(100), 1770: Int(100),
+    })
+    instances.extend((weapon_manager, weapon))
+
+    body_control = next(item for item in instances if item.graph.index == 0x004B)
+    hud_source = Instance(12, SOLDIER_CHILD_GRAPHS[0x01CF], parent=(body_control.index, 3))
+    body_control.active[3] = subscript(hud_source.index)
+    hud_source.active[40] = None
+    hud_source.extra.update({7044: Bool(True), 8831: Bool(True)})
+    instances.append(hud_source)
+
+    # This is intentionally the old flat-vector framing: it is the last live-proven baseline.
+    out = BitWriter()
+    out.bit(0); out.bit(1); out.bit(0); out.w_var(cmfd)
+    ordered = sorted(instances, key=lambda item: item.index)
+    last = 0
+    for instance in ordered:
+        out.w_u16(instance.index - last); last = instance.index; _descriptor(out, instance)
+    out.w_u16(0)
+    out.bit(0)
+    for instance in ordered:
+        for bit in range(instance.graph.sync_vars):
+            value = instance.presence.get(bit)
+            out.bit(value is not None)
+            if value is not None:
+                write_variable(out, value)
+        if instance.extra:
+            out.bit(1); _variables(out, instance.extra)
+        else:
+            out.bit(0)
+        for bit in range(instance.graph.owner_states):
+            out.bit(bit in instance.active)
+        for bit in range(instance.graph.owner_states):
+            if bit in instance.active and instance.active[bit] is not None:
+                out.append(instance.active[bit])
+        out.bits(0b11, 2)
+    out.bits(0, 2)
+    return out
 
 
 def soldier_body_frame(cmfd: int) -> BitWriter:
