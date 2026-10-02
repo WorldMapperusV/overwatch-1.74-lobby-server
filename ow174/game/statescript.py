@@ -312,13 +312,18 @@ def owner_full_frame(cmfd: int, instances: list[Instance], entity_vars: dict[int
 
 
 def soldier_body_roots_probe(cmfd: int, body_entity: int) -> BitWriter:
-    """Validate D530E0 framing without invoking any state-specific deserializer.
+    """Probe the count passed to D530E0, with no selected states or state payloads.
 
-    All nine root descriptors remain present because the full frame is destructive.  No owner
-    state is selected, so A0C620 cannot enter 1B72060/1B74F60 for a state payload.
+    A0C620 loads this count from the graph's runtime state table.  The previous compact
+    owner-state counts are not that table's lengths.  These counts are the extracted 1.74 graph
+    state-table lengths, so this frame contains only each D530E0 chunk mask and no populated chunks.
     """
+    state_table_counts = {
+        0x0033: 31, 0x004B: 42, 0x0043: 28, 0x0251: 3, 0x0255: 34,
+        0x0257: 22, 0x0259: 46, 0x091B: 2, 0x08B6: 13,
+    }
     instances = [
-        Instance(index, graph)
+        Instance(index, Graph(graph.index, state_table_counts[graph.index], graph.sync_vars))
         for index, graph in enumerate(SOLDIER_BODY_GRAPHS, start=1)
     ]
     return owner_full_frame(cmfd, instances, {}, state_controls=True)
