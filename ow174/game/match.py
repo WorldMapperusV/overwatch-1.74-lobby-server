@@ -321,6 +321,8 @@ class Match:
                 self._spawn_steps(player, client, now)
             if player.script.data_last and now >= player.script.next_ack:
                 self._owner_ack(player, player.script, now)
+            if player.body_script.data_last and now >= player.body_script.next_ack:
+                self._owner_ack(player, player.body_script, now)
             if self.assembling() and player.steps_done >= 4 and now >= player.next_countdown:
                 self._send_countdown(player, now)
         for viewer in self.players:
