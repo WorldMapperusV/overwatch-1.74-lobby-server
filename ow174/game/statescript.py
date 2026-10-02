@@ -296,8 +296,10 @@ def soldier_body_roots_probe(cmfd: int) -> BitWriter:
     # 0, 1, 2, 4, 6.  Bare activation of 3 and 5 crashes.  Keep the safe set and add owner bit 7
     # as the sole new change, continuing the direct map before investigating the failing states'
     # state-specific payload or initialization requirements.
-    # Bit 11/raw state 30 is the only 0033 owner state not yet classified by a clean single-bit probe.
-    health.active = {11: None}
+    # Complete live classification: bare activation is safe for 0,1,2,4,6,7,8,11 and crashes
+    # for 3,5,9,10.  Keep the full known-safe set as the new control while BooleanSwitch (3,5)
+    # and Stack (9,10) are investigated separately.
+    health.active = {bit: None for bit in (0, 1, 2, 4, 6, 7, 8, 11)}
     return owner_full_frame(cmfd, instances, {})
 
 
