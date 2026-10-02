@@ -84,7 +84,19 @@ def controller_frame(
     ]
     if controller.hud_bit is not None:
         active[controller.hud_bit] = subscript(4)
-        instances.append(Instance(4, HUD, parent=(1, controller.hud_state), active={0: None}))
+        # 20E4's client-only Entry gates its possession/HUD initialization branch on v23604,
+        # and the main UX presenter reads the same condition.  The extracted graph has no writer
+        # for v23604, so seed the runtime condition on the network-created Practice HUD instance
+        # and let the client-only Entry execute its own lifecycle normally.
+        instances.append(
+            Instance(
+                4,
+                HUD,
+                parent=(1, controller.hud_state),
+                active={0: None},
+                extra={23604: Bool(True)},
+            )
+        )
     entry = len(instances) + 1
     host.active[1] = subscript(entry)
     instances.append(Instance(entry, TEAM_ENTRY, parent=(2, 1)))
