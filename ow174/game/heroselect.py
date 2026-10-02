@@ -93,7 +93,11 @@ def controller_frame(
                 4,
                 HUD,
                 parent=(1, controller.hud_state),
-                active={0: None},
+                # Raw state 25 / owner bit 0 is STU_9D7BF987. Its v17906/v18405 values are
+                # remote-sync data, not ordinary instance sync vars (20E4 has sync_vars=0).
+                # Do not assert the state with an empty payload: first isolate the client-only
+                # HUD startup path while the remote-sync state's wire payload is reconstructed.
+                active={},
                 extra={23604: Bool(True)},
             )
         )
