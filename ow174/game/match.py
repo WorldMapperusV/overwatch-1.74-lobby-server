@@ -431,8 +431,9 @@ class Match:
         # states.  Do not create it on the pre-pick controller frame, when there is no possessed
         # body yet; attach it for the first time in the controller frame sent after switch_hero().
         include_hud = not practice or (player.has_body and not player.practice_hud_pending)
+        include_select = not (practice and player.has_body and not player.select_open)
         frame = heroselect.controller_frame(
-            self.controller, cmfd, player.select_open, skins, practice, include_hud
+            self.controller, cmfd, player.select_open, skins, practice, include_hud, include_select
         )
         player.client.queue_entities([player.script.full_frame(frame)])
         state = "open" if player.select_open else "closed"
