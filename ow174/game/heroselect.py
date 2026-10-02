@@ -68,12 +68,7 @@ def controller_of(mode_guid: int) -> Controller:
 
 
 def controller_frame(
-    controller: Controller,
-    cmfd: int,
-    select_open: bool,
-    skins: bool = False,
-    hide_assemble: bool = False,
-    include_hud: bool = True,
+    controller: Controller, cmfd: int, select_open: bool, skins: bool = False, hide_assemble: bool = False
 ):
     """The owner full frame for the player's entity: the controller (1) with hero select 288A (2) ->
     288B (3) under it, 13C1's HUD 20E4 (4), and 288A's team list entry 288D (the next index).
@@ -82,17 +77,12 @@ def controller_frame(
     active = {controller.hero_select_bit: None, controller.select_bit: subscript(2)}
     host = Instance(2, HERO_SELECT_HOST, parent=(1, controller.select_state), active={0: subscript(3)})
     screen = Instance(3, HERO_SELECT, parent=(2, 0))
-    # 288B raw state 99 compacts to owner bit 14. It is the synchronized Stack beneath
-    # GameMessageEntry raw 100 for 0832.025 and drives the selector's scoped v2438 false.
-    # This is distinct from raw 132/owner 20, which belongs to a v2114 BooleanSwitch branch.
-    if not select_open:
-        screen.active[14] = None
     instances = [
         Instance(1, controller.graph, presence={controller.allow_bit: Bool(True)}, active=active),
         host,
         screen,
     ]
-    if controller.hud_bit is not None and include_hud:
+    if controller.hud_bit is not None:
         active[controller.hud_bit] = subscript(4)
         # 20E4's client-only Entry gates its possession/HUD initialization branch on v23604,
         # and the main UX presenter reads the same condition.  The extracted graph has no writer
