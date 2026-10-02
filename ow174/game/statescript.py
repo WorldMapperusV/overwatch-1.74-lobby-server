@@ -284,11 +284,11 @@ def soldier_body_roots_probe(cmfd: int) -> BitWriter:
     health = next(item for item in instances if item.graph.index == 0x0033)
     health.active = {bit: None for bit in (0, 1, 2, 3, 5, 8)}
 
-    # Clean A/B testing proves 0033 owner bits 0, 1, 2, and 4 are accepted together, while
-    # bit 3 specifically crashes.  Keep the confirmed-safe set, continue past the bad bit, and add
-    # owner bit 5 as the only new change.  This maps which 0033 states accept bare activation before
-    # we inspect the special serialization/semantic requirement of bit 3.
-    health.active = {0: None, 1: None, 2: None, 4: None, 5: None}
+    # Clean A/B testing now marks 0033 owner bits 3 and 5 as crashing under bare activation,
+    # while 0, 1, 2, and 4 are accepted together.  Keep only that confirmed-safe set and add owner
+    # bit 6 as the sole new change.  Continue mapping the graph before assigning semantics to the
+    # failing bits; those may require state-specific payload/initialization rather than a bare bit.
+    health.active = {0: None, 1: None, 2: None, 4: None, 6: None}
     return owner_full_frame(cmfd, instances, {})
 
 
