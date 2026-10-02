@@ -272,12 +272,8 @@ def owner_full_frame(cmfd: int, instances: list[Instance], entity_vars: dict[int
 
 
 def soldier_body_roots_probe(cmfd: int) -> BitWriter:
-    """Bisect root startup states.
-
-    Descriptor-only roots are proven safe.  The all-roots startup-state probe crashes.  Enable the
-    first half of the roots here; the other five remain present but with every owner state off.
-    """
-    enabled = {0x0033, 0x004B, 0x0043, 0x0251}
+    """Bisect root startup states: first half crashed, so test 0033 + 004B only."""
+    enabled = {0x0033, 0x004B}
     instances = [
         Instance(
             index,
