@@ -119,7 +119,12 @@ SOLDIER_INITIAL_CHILD_OWNER_BITS = {
 # are owner-state counts (client/server-only states removed) and compact INSTANCE sync-var counts.
 SOLDIER_WEAPON_MANAGER = Graph(0x0015, 35, 1)
 SOLDIER_PRIMARY_WEAPON = Graph(0x0254, 81, 23)
-SOLDIER_WEAPON_INITIAL_OWNER_BITS = {0x0015: (11,), 0x0254: (0, 31, 56, 58, 72)}
+# BooleanSwitch states are local control flow, not remotely synchronized leaves.  Live testing
+# confirms that asserting 0015 owner bit 11 (raw BooleanSwitch state 11) from the server crashes
+# during Hero Selection.  The extracted graphs also classify 0254 owner bits 0 and 72 as
+# non-remote BooleanSwitch states, so exclude all three from authoritative network startup.
+# Keep only 0254's genuinely remote startup leaves: Ability 31, ChaseVar 56, and Stack 58.
+SOLDIER_WEAPON_INITIAL_OWNER_BITS = {0x0015: (), 0x0254: (31, 56, 58)}
 
 # Known literal Entry writes that a server-created instance must reproduce because its server Entry
 # actions do not execute locally: 0033 entity v32350=.3; 004B entity v14676=true; 0043 instance
