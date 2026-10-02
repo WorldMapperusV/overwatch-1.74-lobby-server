@@ -59,7 +59,7 @@ class Controller:
     hud_state: int | None = None
 
 
-PRACTICE = Controller(CONTROLLER, 5, 25, 37, 43, 36, 42)
+PRACTICE = Controller(CONTROLLER, 5, 25, 37, 43, None, 42)
 PVP = Controller(PVP_CONTROLLER, 19, 1, 103, 119)
 
 
@@ -82,8 +82,10 @@ def controller_frame(
         host,
         screen,
     ]
-    if controller.hud_bit is not None:
-        active[controller.hud_bit] = subscript(4)
+    if controller.hud_state is not None:
+        # 13C1 raw state 42 is a local SubScript state (remote=-1), not owner bit 36.
+        # Keep the network-created 20E4 child attached to raw parent state 42, but do not
+        # synthesize a nonexistent owner-state activation for the parent.
         # 20E4's client-only Entry gates its possession/HUD initialization branch on v23604,
         # and the main UX presenter reads the same condition.  The extracted graph has no writer
         # for v23604, so seed the runtime condition on the network-created Practice HUD instance
