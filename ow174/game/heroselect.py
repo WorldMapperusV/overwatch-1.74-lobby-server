@@ -53,14 +53,14 @@ class Controller:
     graph: Graph
     allow_bit: int  # the presence bit of v8419, m_allowHeroSelect
     hero_select_bit: int  # the HeroSelect state
-    select_bit: int  # states[] bit for the SubScript state that starts 288A
+    select_bit: int  # the SubScript state that starts 288A: its state bit, and its state index
     select_state: int
-    hud_bit: int | None = None  # states[] bit for the SubScript state that starts 20E4
+    hud_bit: int | None = None  # the SubScript state that starts 20E4, if the server has to
     hud_state: int | None = None
 
 
-PRACTICE = Controller(CONTROLLER, 5, 25, 43, 43, 42, 42)
-PVP = Controller(PVP_CONTROLLER, 19, 1, 119, 119)
+PRACTICE = Controller(CONTROLLER, 5, 25, 37, 43, 36, 42)
+PVP = Controller(PVP_CONTROLLER, 19, 1, 103, 119)
 
 
 def controller_of(mode_guid: int) -> Controller:
