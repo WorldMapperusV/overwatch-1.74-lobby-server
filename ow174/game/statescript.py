@@ -312,19 +312,18 @@ def owner_full_frame(cmfd: int, instances: list[Instance], entity_vars: dict[int
 
 
 def soldier_body_roots_probe(cmfd: int, body_entity: int) -> BitWriter:
-    """Protocol probe for the previously crashing 0033 BooleanSwitch owner bit 3.
+    """Control probe for the D530E0 sparse state-vector encoding.
 
-    Keep all nine Soldier root descriptors because an owner full frame is destructive, but select
-    no other states.  This isolates the D530E0 state-vector encoding and the ordinary A0C8A5
-    lifecycle bit from the HUD/weapon graph experiments.
+    Use the previously live-safe 0033 owner bit 0 and no other state.  This separates the new
+    outer state-mask codec from the unresolved BooleanSwitch lifecycle/control semantics.
     """
     instances = [
         Instance(index, graph)
         for index, graph in enumerate(SOLDIER_BODY_GRAPHS, start=1)
     ]
     health = next(item for item in instances if item.graph.index == 0x0033)
-    health.active[3] = None
-    return owner_full_frame(cmfd, instances, {}, state_controls=True)
+    health.active[0] = None
+    return owner_full_frame(cmfd, instances, {}, state_controls=False)
 
 
 def soldier_body_frame(cmfd: int) -> BitWriter:
