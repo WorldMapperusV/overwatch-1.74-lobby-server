@@ -40,6 +40,10 @@ HUD = Graph(0x20E4, 1, 0)  # 13C1's weapon and ability HUD (0C90 starts its own)
 HERO_SELECT_HOST = Graph(0x288A, 6, 0)
 HERO_SELECT = Graph(0x288B, 30, 4)  # presents the hero select screen 008C.05A
 TEAM_ENTRY = Graph(0x288D, 0, 0)  # client-only: posts its entity to the local player's team list
+# Soldier 76's 0257 initial body graph. The extracted 1.74 graph has 21 owner-frame states
+# (22 m_states entries, one client-only) and six instance-variable presence bits. Its normal Entry
+# starts m_states[7], a BooleanSwitch. This is deliberately a narrow HUD/ability probe.
+SOLDIER_ABILITY = Graph(0x0257, 21, 6)
 
 
 class Value:
@@ -183,6 +187,12 @@ def owner_full_frame(cmfd: int, instances: list[Instance], entity_vars: dict[int
         out.bits(0b11, 2)  # the instance's event list ends (code 3)
     out.bits(0, 2)  # the frame's event lists: none
     return out
+
+
+def soldier_ability_frame(cmfd: int) -> BitWriter:
+    """Minimal Soldier body probe: instantiate definition-order graph 0257 (instance 6) and reproduce
+    its normal Entry by activating owner slot 7. Do not guess the other entry paths or variables."""
+    return owner_full_frame(cmfd, [Instance(6, SOLDIER_ABILITY, active={7: None})], {})
 
 
 def variables_frame(entity_vars: dict[int, Value]) -> BitWriter:
