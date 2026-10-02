@@ -43,6 +43,10 @@ ASSEMBLING = 0  # 288B's presence bit of v25377
 # a client-only Stack writes it (on 06A7.025, which some mode graphs post), so a value from the server
 # stays.
 HIDE_ASSEMBLE = 8535
+# 20E4's only server-visible state synchronizes entity v18405 and v17906. v18405 is consumed
+# directly by both of its HUD presentation states (and the analogous client-only PvP HUD 1A36).
+# Probe it independently before touching the body's much larger StateScript tree.
+HUD_PRESENT = 18405
 PICK_HERO = 0x0240000000001361  # 1361.025 {hero}
 OPEN_OR_CLOSE = 0x0240000000001360  # 1360.025 {open}
 HERO_TYPE = 0x02E0  # the type bits of a 075 hero GUID
@@ -93,6 +97,8 @@ def controller_frame(
     if hide_assemble:
         screen.extra[HIDE_ASSEMBLE] = Bool(True)
     variables = {OPEN_SELECT: Bool(select_open), SELECT_SHOWN: Bool(select_open)}
+    if controller.hud_bit is not None:
+        variables[HUD_PRESENT] = Bool(True)
     return owner_full_frame(cmfd, instances, variables)
 
 
