@@ -1,7 +1,10 @@
 """Statescript on ch1: frames that put graph instances on an entity and set their states and
 variables. The client runs the graphs; the server says which instances exist and what is on.
 
-Read in the client (our IDA; the chunk reader 0x7FF7898A6450, the frame 0x7FF78991E3C0):
+Read in the client (runtime-decrypted 1.74 image; RVAs are ASLR-independent):
+- The chunk reader is Overwatch.exe+0x996450. The owner-frame instance-list reader is +0xA0E1D0,
+  reached by the higher-level apply routine +0xA0E3C0; a new instance descriptor is read at +0xA0C510
+  and its graph/parent/reference descriptor body at +0xA0ADC0.
 - A chunk is `w_u32 first | w_var span | bit fragmented | w_var size in bits | payload`. first 0 is a
   full frame. The client keeps the highest `last` (first + span) it applied and drops chunks at or
   below it, so an unchanged chunk can be sent again safely.
