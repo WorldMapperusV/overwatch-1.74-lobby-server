@@ -286,7 +286,10 @@ def soldier_body_roots_probe(cmfd: int) -> BitWriter:
 
     parent = next(item for item in instances if item.graph.index == 0x004B)
     child_id = 10
-    parent.active[0] = subscript(child_id)
+    # Isolate the descriptor side of the SubScript relationship.  The previous probe combined
+    # two new things at once: the child descriptor and the active parent state/payload.  Keep the
+    # 01C7 child attached to 004B state 0, but leave 004B state 0 off.  If this survives, the
+    # descriptor/parent tuple is accepted and the failure is in the active-state serialization.
     instances.append(
         Instance(
             child_id,
