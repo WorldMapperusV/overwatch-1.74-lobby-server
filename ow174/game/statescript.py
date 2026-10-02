@@ -275,7 +275,7 @@ def owner_full_frame(cmfd: int, instances: list[Instance], entity_vars: dict[int
 
 
 
-def soldier_body_roots_probe(cmfd: int) -> BitWriter:
+def soldier_body_roots_probe(cmfd: int, body_entity: int) -> BitWriter:
     """Add 004B state 0 + child 01C7 on top of the proven coherent 0033 startup set.
 
     The previous live test established that 0033 owner bits 0,1,2,3,5,8 are accepted together.
@@ -352,10 +352,12 @@ def soldier_body_roots_probe(cmfd: int) -> BitWriter:
     hud_source = instances[-1]
     hud_source.extra.update({7044: Bool(True), 8831: Bool(True)})
 
-    # v7044/v8831 are accepted but produce no visible HUD change.  Owner bit 1 crashes when
-    # activated bare, so restore the proven 01CF remote-sync baseline.  Do not continue scanning
-    # presenter bits without reconstructing their class-specific payload/lifecycle requirements.
-    return owner_full_frame(cmfd, instances, {})
+    # The crashing 01CF owner bit 1 is a Stack whose value dereferences entity variable v1900
+    # four times.  v1900 is network-visible/entity-scoped in 01CF and is otherwise unset in our
+    # server-created graph, so the bare state was evaluating through a null entity.  Seed it with
+    # the possessed body and retry that Stack on top of the proven HUD-sync baseline.
+    hud_source.active[1] = None
+    return owner_full_frame(cmfd, instances, {1900: Entity(body_entity)})
 
 
 def soldier_body_frame(cmfd: int) -> BitWriter:
