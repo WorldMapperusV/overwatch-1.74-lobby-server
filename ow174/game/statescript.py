@@ -268,22 +268,27 @@ def owner_full_frame(cmfd: int, instances: list[Instance], entity_vars: dict[int
 
 
 def soldier_body_roots_probe(cmfd: int) -> BitWriter:
-    """Probe 0033 as a coherent creation-state set instead of isolated control states.
+    """Probe 004B raw/owner state 0 with its required SubScript payload.
 
-    The extracted graph shows its primary Entry starts raw state 13, which in turn starts raw
-    BooleanSwitch states 4 and 10 and initialization paths for HealthPool states 0, 1, and 3.
-    After filtering client/server-only states those are owner bits 8, 3, 5, 0, 1, and 2.
-    Bits 3 and 5 crash when sent alone, so test the graph invariant they normally participate in.
+    0033 owner bit 2 is raw state 3 (HealthPool), not a generic startup bit; activating it by itself
+    crashes while its sibling HealthPool bits 0 and 1 survive.  Leave 0033 off for now and validate
+    the child-bearing 004B path needed by the Soldier HUD.  004B state 0 is a SubScript and therefore
+    must carry the child instance id; sending the state bit alone is not a valid probe.
     """
-    startup = {0, 1, 2, 3, 5, 8}
     instances = [
-        Instance(
-            index,
-            graph,
-            active=({bit: None for bit in startup} if graph.index == 0x0033 else {}),
-        )
+        Instance(index, graph)
         for index, graph in enumerate(SOLDIER_BODY_GRAPHS, start=1)
     ]
+    parent = next(item for item in instances if item.graph.index == 0x004B)
+    child_id = 10
+    parent.active[0] = subscript(child_id)
+    instances.append(
+        Instance(
+            child_id,
+            SOLDIER_CHILD_GRAPHS[0x01C7],
+            parent=(parent.index, 0),
+        )
+    )
     return owner_full_frame(cmfd, instances, {})
 
 
