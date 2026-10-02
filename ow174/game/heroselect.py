@@ -95,10 +95,6 @@ def controller_frame(
                 parent=(1, controller.hud_state),
                 active={0: None},
                 extra={23604: Bool(True)},
-                # Probe the otherwise-unused new-instance descriptor flag only on 20E4.  The
-                # client consumes this during instance construction, before parent/state decode;
-                # all other reconstructed graphs retain the proven zero value.
-                instance_flag=True,
             )
         )
     entry = len(instances) + 1
