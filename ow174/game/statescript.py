@@ -310,7 +310,13 @@ def soldier_body_roots_probe(cmfd: int) -> BitWriter:
     # 0015's descriptor is now live-proven safe.  Add Soldier's primary weapon graph 0254 as a
     # second descriptor-only instance.  Keep both graphs' states and variables off: this isolates
     # whether the primary weapon object itself is accepted before enabling ammo/ability/UX states.
-    instances.append(Instance(11, SOLDIER_PRIMARY_WEAPON))
+    weapon = Instance(11, SOLDIER_PRIMARY_WEAPON)
+    instances.append(weapon)
+
+    # Both 0015 and 0254 descriptors are now live-proven safe.  Start 0254 state isolation from
+    # that clean control with owner bit 0 as the sole active weapon state.  No weapon variables or
+    # manager states are sent yet, so a change in behavior is attributable to 0254 bit 0.
+    weapon.active[0] = None
     return owner_full_frame(cmfd, instances, {})
 
 
