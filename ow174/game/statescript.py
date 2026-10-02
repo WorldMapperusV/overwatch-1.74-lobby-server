@@ -75,11 +75,13 @@ SOLDIER_004B_INITIAL_CHILDREN = (
 # Soldier startup reconstruction from the extracted 1.74 graphs and the client reader.
 # IMPORTANT: these are OWNER-FRAME bit indices, not raw graph state indices.  Owner frames omit
 # client-only and server-only states, so raw state numbers must be compacted before serialization.
-# This distinction was proven live on 0033: the old raw-state tuple (8, 9, 10) was incorrectly sent
-# as owner bits 8, 9, 10. Bit 8 happened to be harmless, while 9 and 10 selected unrelated Stack
-# states and crashed. Raw states 8 and 9 are client-only; raw state 10 is owner bit 5.
+# For 0033 the 12 owner bits map to raw states 0,1,3,4,5,10,11,12,13,24,25,30. Live A/B tests
+# show bare owner bits 3 (raw BooleanSwitch 4), 5 (raw BooleanSwitch 10), 9 and 10 (raw Stack
+# 24/25) crash, while owner bit 8 (raw state 13, STU_CD46AF93) is accepted. The graph's first
+# ordinary Entry points directly to raw state 13; its subgraph lists raw states 4,3,0,10,1.
+# Therefore those nested states must not be mistaken for independent creation-time owner states.
 SOLDIER_INITIAL_OWNER_BITS = {
-    0x0033: (5,),
+    0x0033: (8,),
     0x004B: (0, 3, 5, 10, 12, 13, 14, 15, 18, 19, 20, 22, 23, 24, 25, 27, 31),
     0x0043: (5, 14, 20), 0x0251: (0, 1),
     0x0255: (2, 4, 6, 7, 8, 16, 17, 18, 22, 25),
@@ -288,7 +290,7 @@ def soldier_body_roots_probe(cmfd: int) -> BitWriter:
     # 0, 1, 2, 4, 6.  Bare activation of 3 and 5 crashes.  Keep the safe set and add owner bit 7
     # as the sole new change, continuing the direct map before investigating the failing states'
     # state-specific payload or initialization requirements.
-    health.active = {0: None, 1: None, 2: None, 4: None, 6: None, 7: None, 8: None}
+    health.active = {8: None}
     return owner_full_frame(cmfd, instances, {})
 
 
