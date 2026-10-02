@@ -300,6 +300,12 @@ def soldier_body_roots_probe(cmfd: int) -> BitWriter:
     # for 3,5,9,10.  Keep the full known-safe set as the new control while BooleanSwitch (3,5)
     # and Stack (9,10) are investigated separately.
     health.active = {bit: None for bit in (0, 1, 2, 4, 6, 7, 8, 11)}
+
+    # HUD reconstruction now moves to the weapon path.  20E4 itself is already alive; Soldier's
+    # definition-level weapon manager (0015) is the next upstream graph.  Add only its descriptor,
+    # with every manager state/variable off, so this test answers whether 0015 can coexist with the
+    # proven body-root frame before we attempt 0254 or any UX/ability state.
+    instances.append(Instance(10, SOLDIER_WEAPON_MANAGER))
     return owner_full_frame(cmfd, instances, {})
 
 
