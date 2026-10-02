@@ -220,12 +220,13 @@ class Instance:
     presence: dict[int, Value] = field(default_factory=dict)  # presence bit -> value
     extra: dict[int, Value] = field(default_factory=dict)  # variable id -> value
     active: dict[int, BitWriter | None] = field(default_factory=dict)  # owner state bit -> payload
+    instance_flag: bool = False  # new-instance descriptor flag consumed before parent/reference data
 
 
 def _descriptor(out: BitWriter, instance: Instance) -> None:
     out.bits(instance.graph.index, 16)
     out.bit(0)  # the instance lives on this entity
-    out.bit(0)  # flag
+    out.bit(instance.instance_flag)  # new-instance creation metadata
     if instance.parent is None:
         out.bit(0)
     else:
