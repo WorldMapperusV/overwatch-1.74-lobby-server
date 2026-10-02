@@ -352,12 +352,10 @@ def soldier_body_roots_probe(cmfd: int, body_entity: int) -> BitWriter:
     hud_source = instances[-1]
     hud_source.extra.update({7044: Bool(True), 8831: Bool(True)})
 
-    # The crashing 01CF owner bit 1 is a Stack whose value dereferences entity variable v1900
-    # four times.  v1900 is network-visible/entity-scoped in 01CF and is otherwise unset in our
-    # server-created graph, so the bare state was evaluating through a null entity.  Seed it with
-    # the possessed body and retry that Stack on top of the proven HUD-sync baseline.
-    hud_source.active[1] = None
-    return owner_full_frame(cmfd, instances, {1900: Entity(body_entity)})
+    # v1900=body did not make owner bit 1 safe; the Stack still crashes, so that hypothesis is
+    # rejected.  Restore the proven HUD-sync baseline and keep v1900 out until its actual producer
+    # and the Stack's remaining dependencies are reconstructed.
+    return owner_full_frame(cmfd, instances, {})
 
 
 def soldier_body_frame(cmfd: int) -> BitWriter:
