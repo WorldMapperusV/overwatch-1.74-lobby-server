@@ -323,7 +323,7 @@ def soldier_body_roots_probe(cmfd: int, body_entity: int) -> BitWriter:
     ]
     health = next(item for item in instances if item.graph.index == 0x0033)
     health.active[0] = None
-    return owner_full_frame(cmfd, instances, {}, state_controls=False)
+    return owner_full_frame(cmfd, instances, {}, state_controls=True)
 
 
 def soldier_body_frame(cmfd: int) -> BitWriter:
