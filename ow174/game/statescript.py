@@ -284,19 +284,11 @@ def soldier_body_roots_probe(cmfd: int) -> BitWriter:
     health = next(item for item in instances if item.graph.index == 0x0033)
     health.active = {bit: None for bit in (0, 1, 2, 3, 5, 8)}
 
-    parent = next(item for item in instances if item.graph.index == 0x004B)
+    # The attached 01C7 descriptor crashed even with 004B state 0 off.  Split the descriptor
+    # itself now: create the same graph as an unattached root.  If this survives, graph 01C7 is
+    # accepted and the remaining fault is specifically the parent descriptor encoding/semantics.
     child_id = 10
-    # Isolate the descriptor side of the SubScript relationship.  The previous probe combined
-    # two new things at once: the child descriptor and the active parent state/payload.  Keep the
-    # 01C7 child attached to 004B state 0, but leave 004B state 0 off.  If this survives, the
-    # descriptor/parent tuple is accepted and the failure is in the active-state serialization.
-    instances.append(
-        Instance(
-            child_id,
-            SOLDIER_CHILD_GRAPHS[0x01C7],
-            parent=(parent.index, 0),
-        )
-    )
+    instances.append(Instance(child_id, SOLDIER_CHILD_GRAPHS[0x01C7]))
     return owner_full_frame(cmfd, instances, {})
 
 
