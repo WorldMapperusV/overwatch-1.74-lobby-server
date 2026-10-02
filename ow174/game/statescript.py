@@ -72,42 +72,36 @@ SOLDIER_004B_INITIAL_CHILDREN = (
     (18, Graph(0x0C7D, 0, 0)),
 )
 
-# Startup reconstruction from the extracted 1.74 graphs. Follow ordinary STUStatescriptEntry
-# output/action chains only until they enter a state; following a state's own output plugs incorrectly
-# folds later transitions into the creation frame. These are OWNER-BIT indices, as written on the wire.
-SOLDIER_INITIAL_OWNER_BITS = {
-    0x0033: (8, 9, 10),
-    0x004B: (0, 3, 5, 10, 12, 13, 14, 15, 18, 19, 20, 22, 23, 24, 25, 27, 31, 33),
-    0x0043: (6, 15, 21),
-    0x0251: (0, 1),
-    0x0255: (2, 4, 6, 7, 8, 16, 17, 18, 22, 28),
-    0x0257: (7, 11, 12, 13, 18),
-    0x0259: (0, 15, 17),
-    0x091B: (0,),
-    0x08B6: (0, 1, 4, 7, 9, 10),
-}
+# Soldier startup notes from the extracted 1.74 graphs.  There are multiple ordinary Entry nodes in
+# several graphs, so an Entry's existence alone does not prove that it fires on entity creation.  Do
+# not turn the candidate sets below into a body frame until the runtime entry selector is identified.
+# The old single-0257 full-frame probe was unsafe regardless: a full frame destroys omitted network
+# instances.
+#
+# 03CF separately names weapon manager 0015 and primary weapon 0254 in addition to its nine graph
+# records.  These are definition-level relationships, not SubScript edges from the nine roots.  This
+# is the missing branch needed to explain why reconstructing only the roots cannot establish the
+# weapon/ammo HUD.
+SOLDIER_WEAPON_MANAGER = Graph(0x0015, 45, 1)
+SOLDIER_PRIMARY_WEAPON = Graph(0x0254, 85, 23)
 
-SOLDIER_INITIAL_CHILD_OWNER_BITS = {
-    0x01C7: (4, 7, 10, 12, 13, 15, 16, 18, 21, 23, 24, 29, 35, 36, 38, 39, 40),
-    0x01CF: (4, 6, 8, 11, 13, 14, 17, 20, 22, 23, 24, 25, 32, 33),
-    0x02C5: (6,),
-    0x0B8B: (0,),
-    0x0C7D: (),
-}
-
-# 03CF separately names weapon manager 0015 and primary weapon 0254; they are not SubScripts of the
-# nine roots, so a complete body topology must include/account for them as definition-level graphs.
-SOLDIER_WEAPON_MANAGER = Graph(0x0015, 35, 1)
-SOLDIER_PRIMARY_WEAPON = Graph(0x0254, 81, 23)
-SOLDIER_WEAPON_INITIAL_OWNER_BITS = {0x0015: (11, 27, 28, 29), 0x0254: (0, 31, 55, 60, 62, 76)}
-
-# Entry actions the client will not run for server-created instances. Known literal startup writes:
-# 0033 entity v32350=.3; 004B entity v14676=true; 0043 instance v476=30, v215=.5, v1258=0,
-# v1257=1; 0255 instance v1002=.5, v636=.3; 01CF instance v7044=true, v8831=true; 01C7 entity
-# v31296=1. Primary weapon 0254 also initializes instance v476=20, v581=1.5, v6884=.511,
-# v6885=.1, v229=0, v230=0, v1769=100 and v1770=100, then derives v198/v53 from entity v10265 and
-# copies v198 to entity v7185. Manager 0015 initializes entity v9526/v9573 through engine expressions.
-# Expression/engine-derived startup values must not be guessed.
+# What is proven about their ordinary creation-looking entry paths:
+# - 0015 entry pos 0 first executes action pos 72.  That action writes entity v9526/v9573 from
+#   expressions whose only dynamic inputs are those same entity variables, then begins states 11 and
+#   39.  0015 also has another ordinary Entry at pos 56, so pos 0 cannot yet be assumed to be the
+#   unique creation entry.
+# - 0254 entry pos 0 begins Stack state 64 and an action chain whose first literals are instance
+#   v476=20, v581=1.5, v6884=.511 and v6885=.1.  0254 has several additional ordinary Entries, so the
+#   complete creation state is likewise not proven by static reachability alone.
+# - The 03CF definition gives no runtime StateScript instance IDs for 0015/0254.  Those IDs are runtime
+#   allocation state, not graph indices or array positions.  Guessing them is exactly what the next
+#   probe must avoid.
+#
+# Runtime evidence still required before a safe body full frame: identify which ordinary Entry kind
+# is selected for definition-created roots/manager/weapon, and record the live instance IDs/topology.
+# The relevant client routines are +0xA0E1D0 (instance-list reader), +0xA0C510 (new-instance handling)
+# and +0xA0ADC0 (graph/parent/reference descriptor).  Once the live IDs are known, the existing
+# serializer can reproduce the complete authoritative instance list without destroying unknowns.
 
 class Value:
     tag: int
