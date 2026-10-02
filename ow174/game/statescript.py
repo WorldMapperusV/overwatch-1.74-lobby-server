@@ -80,6 +80,12 @@ SOLDIER_004B_INITIAL_CHILDREN = (
 # 24/25) crash, while owner bit 8 (raw state 13, STU_CD46AF93) is accepted. The graph's first
 # ordinary Entry points directly to raw state 13; its subgraph lists raw states 4,3,0,10,1.
 # Therefore those nested states must not be mistaken for independent creation-time owner states.
+# 0033 owner-bit map from the extracted graph after filtering client/server-only states:
+#   0=HealthPool(raw 0), 1=HealthPool(1), 2=HealthPool(3), 3=BooleanSwitch(4),
+#   4=ModifyHealth(5), 5=BooleanSwitch(10), 6=STU_87621906(11), 7=Wait(12),
+#   8=STU_CD46AF93(13), 9=Stack(24), 10=Stack(25), 11=STU_BD02E168(30).
+# Live probes: 0,1,2,4,6,7,8 survive bare activation; 3,5,9,10 crash.  The failing bits
+# therefore cluster by state class/lifecycle (BooleanSwitch and Stack), not by bit-vector position.
 SOLDIER_INITIAL_OWNER_BITS = {
     0x0033: (8,),
     0x004B: (0, 3, 5, 10, 12, 13, 14, 15, 18, 19, 20, 22, 23, 24, 25, 27, 31),
@@ -290,7 +296,8 @@ def soldier_body_roots_probe(cmfd: int) -> BitWriter:
     # 0, 1, 2, 4, 6.  Bare activation of 3 and 5 crashes.  Keep the safe set and add owner bit 7
     # as the sole new change, continuing the direct map before investigating the failing states'
     # state-specific payload or initialization requirements.
-    health.active = {8: None}
+    # Bit 11/raw state 30 is the only 0033 owner state not yet classified by a clean single-bit probe.
+    health.active = {11: None}
     return owner_full_frame(cmfd, instances, {})
 
 
