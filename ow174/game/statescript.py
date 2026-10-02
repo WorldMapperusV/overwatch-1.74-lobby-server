@@ -302,13 +302,11 @@ def soldier_body_roots_probe(cmfd: int, body_entity: int) -> BitWriter:
     health.active = {bit: None for bit in (0, 1, 2, 4, 6, 7, 8, 11)}
 
     # HUD reconstruction now moves to the weapon path.  20E4 itself is already alive; Soldier's
-    # definition-level weapon manager (0015) is the next upstream graph.  Add only its descriptor,
-    # with every manager state/variable off, so this test answers whether 0015 can coexist with the
-    # proven body-root frame before we attempt 0254 or any UX/ability state.
-    # 0015's descriptor is live-proven safe. Its extracted Entry path selects owner bit 11 before
-    # the primary weapon graph is useful. Probe that manager state by itself while keeping 0254
-    # state-free; this changes only one state bit relative to the reconfirmed 714a123b baseline.
-    instances.append(Instance(10, SOLDIER_WEAPON_MANAGER, active={11: None}))
+    # definition-level weapon manager (0015) is the next upstream graph.  Its descriptor is
+    # live-proven safe, but activating owner bit 11 bare crashes during Hero Selection.  That state
+    # is a BooleanSwitch and therefore needs its class-specific lifecycle/payload reconstructed
+    # before it can be serialized.  Keep the manager state-free as the proven control.
+    instances.append(Instance(10, SOLDIER_WEAPON_MANAGER))
 
     # 0015's descriptor is now live-proven safe.  Add Soldier's primary weapon graph 0254 as a
     # second descriptor-only instance.  Keep both graphs' states and variables off: this isolates
