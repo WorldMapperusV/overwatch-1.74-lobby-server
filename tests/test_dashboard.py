@@ -46,6 +46,7 @@ class Lobby:
             )
         )
         self.social = SimpleNamespace(sessions={})
+        self.matchmaker = SimpleNamespace(minimum_players=0, forced_map=None)
         self.loot = SimpleNamespace(open_all=self.open_all)
         self.pushed = []
         self.granted = []
@@ -63,6 +64,12 @@ class Lobby:
 
     def select_account(self, name):
         self.selected = self.accounts.get(name)
+
+    def default_account_name(self):
+        return getattr(self, "default_name", "")
+
+    def set_default_account(self, name):
+        self.default_name = name
 
     def push_profile(self, account=None, granted=None):
         self.pushed.append(account or self.selected)
@@ -112,6 +119,25 @@ class DashboardTests(unittest.TestCase):
         self.assertEqual({b["id"] for b in data["catalogs"]["box_types"]}, set(BOX_TYPES))
         self.assertEqual(data["server"]["connected_clients"], 0)
         self.assertEqual(data["profile"]["player_name"], "Alpha")
+
+    def test_the_map_for_every_queue_is_set_and_cleared(self):
+        status, _ = self.request("/api/set_map", {"map": "0x80000000000066D"})
+        self.assertEqual(status, 200)
+        self.assertEqual(self.lobby.matchmaker.forced_map, 0x080000000000066D)
+        _, data = self.request("/api/state")
+        self.assertEqual(data["server"]["forced_map"], "0x80000000000066D")
+        self.assertIn({"guid": "0x80000000000066D", "name": "Ilios"}, data["server"]["maps"])
+        self.request("/api/set_map", {"map": "random"})
+        self.assertIsNone(self.lobby.matchmaker.forced_map)
+        status, _ = self.request("/api/set_map", {"map": "0x0800000000099999"})  # not a map the data knows
+        self.assertEqual(status, 400)
+
+    def test_an_account_can_be_made_the_default(self):
+        status, data = self.request("/api/default_account", {"name": "beta"})
+        self.assertEqual(status, 200)
+        self.assertEqual(self.lobby.default_name, "Beta")  # the saved name, not the typed case
+        _, data = self.request("/api/state")
+        self.assertEqual([row["name"] for row in data["accounts"] if row["default"]], ["Beta"])
 
     def test_selected_marks_the_game_account_not_the_page_account(self):
         # Viewing Beta in the dashboard must not move the "Selected" mark off the game's account.

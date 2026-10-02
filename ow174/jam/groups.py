@@ -24,7 +24,6 @@ REPLAYS = 0x5894D085
 STORE = 0x4BAD7A7E  # 26400 products, 26404
 CHAT_IN = 0x5F913F6B  # 20400 message, 20401 channel members, 20402 joined, 20404 left
 HANDOFF = 0x074DAD18  # 20600 game-server handoff
-GAME_STATE = 0x1CFB43CD  # 53000 client activity/search state (research: Practice Range state 4)
 QUEUE_WAITS = 0xA1498A6A  # 56200 estimated waits of the role cards (content/queue.py)
 QUEUE = 0xB4F8BC62  # 44200 queue list, 44201 queue joined {key, ...}, 44202 queue left {key, reason}
 PING = 0xDDA583EF  # 35500 data centers to ping
@@ -49,7 +48,6 @@ MATCHMAKE = 0x1C6EC712  # 44100 enter queue, 44102 cancel
 GROUP_FINDER = 0x9529F0ED  # 52201 group state, 52203 chosen roles (client to server only)
 OWL_POLL = 0xEB45AD29  # 42600 asks for Overwatch League live matches, every few seconds
 RANKED_OUT = 0x17CCBFB2  # 36200 {card}: the season intro of that card was closed
-GAME_STATE_ACK = 0x888716D3  # 52903 acknowledges a 53000 state transition
 
 # Periodic client reports that carry nothing the lobby needs
 TELEMETRY = frozenset({0xC64B397E, 0x692C511B})

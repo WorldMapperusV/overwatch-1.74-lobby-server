@@ -1,7 +1,7 @@
 """Queueing for a game, and the group finder.
 
-No real match is created: the game connection is still blocked (see docs/STATE.md). A queue request
-starts a local game-server process that only records what it receives.
+A party that searches goes to the matchmaker (lobby/matchmaker.py), which puts it into a match on
+the game server once enough players search the same queue.
 """
 
 import json
@@ -9,18 +9,7 @@ import json
 from ow174.content import passes
 from ow174.content.queue import PASS_ROLES, PICKING, ROLE_NUMBERS, SEARCHING, wait_times
 from ow174.content.ranked import ROLES
-from ow174.jam.groups import (
-    GAME_REQUEST,
-    GAME_STATE,
-    GAME_STATE_ACK,
-    GROUP_FINDER,
-    GROUPS,
-    HANDOFF,
-    MATCHMAKE,
-    PASSES,
-    QUEUE,
-    QUEUE_WAITS,
-)
+from ow174.jam.groups import GAME_REQUEST, GROUP_FINDER, GROUPS, MATCHMAKE, PASSES, QUEUE, QUEUE_WAITS
 from ow174.jam.values import to_jsonable
 from ow174.lobby.router import Router
 from ow174.lobby.session import Session
@@ -37,8 +26,6 @@ DECLINE = 44105  # Decline on that banner
 PASS_ROLE = 44106  # {role numbers}: the role to spend a priority pass on, sent after 44103
 CHANGE_ROLES = 44107  # Change Role on the role screen, once the member is ready
 PRACTICE_RANGE = (2, 4)  # a create-game request with kind 2 and flags 4
-PRACTICE_SEARCH_STATE = 4
-PRACTICE_STATE_TOKEN = 0  # verified by tools/probe_practice.py
 
 
 def _mode_guid(value: dict) -> int:
@@ -78,19 +65,20 @@ def enter_queue(session: Session, value: dict) -> None:
     key = value["+0x78"]
     party = session.server.social.party_of(session.account)
     _send_members(session, party, 44201, queue_joined(key))
-    if session.server.content.arcade.has_roles(_mode_guid(value)):
-        party.queue = key
-        party.queue_state = PICKING
-        # The role badge on each portrait shows these roles (0x7FF7898FC8D0); they are new each time.
-        party.roles = {}
-        party.accepted = {session.account.account_lo}
-        party.ready = set()
-        party.pass_roles = {}
-        party.passes_taken = set()
-        _send_members(session, party, 56200, wait_times(), QUEUE_WAITS)
-        session.server.notify_party(party)
-        session.log("[MM] Role check started")
-    _allocate_game(session, _mode_guid(value), "queue")
+    if not session.server.content.arcade.has_roles(_mode_guid(value)):
+        session.server.matchmaker.search(party, key, _mode_guid(value))
+        return
+    party.queue = key
+    party.queue_state = PICKING
+    # The role badge on each portrait shows these roles (0x7FF7898FC8D0); they are new each time.
+    party.roles = {}
+    party.accepted = {session.account.account_lo}
+    party.ready = set()
+    party.pass_roles = {}
+    party.passes_taken = set()
+    _send_members(session, party, 56200, wait_times(), QUEUE_WAITS)
+    session.server.notify_party(party)
+    session.log("[MM] Role check started")
 
 
 @routes.on(MATCHMAKE, CANCEL_QUEUE)
@@ -190,6 +178,9 @@ def _update_queue(session: Session, party) -> None:
         _send_members(session, party, 44201, queue_joined(party.queue))
         _take_passes(session, party)
         session.log("[MM] Everyone is ready: searching")
+        session.server.notify_party(party)
+        session.server.matchmaker.search(party, party.queue, party.queue["+0x0"]["+0x0"])
+        return
     session.server.notify_party(party)
 
 
@@ -225,11 +216,7 @@ def _leave_queue(session: Session, party, key: dict, skip: int | None = None) ->
     """Takes the party out of the queue. Members get 44202, so their client drops its queue entry
     and closes the role screens; the one who cancelled (skip) dropped it already."""
     _send_members(session, party, 44202, queue_left(key), skip=skip)
-    matches = session.server.matches
-    for member in party.members:
-        member_session = session.server.session_of(member.account_lo)
-        if matches is not None and member_session:
-            matches.cancel(member_session.conn_id, mode=key["+0x0"]["+0x0"])
+    session.server.matchmaker.cancel(party)
     if party.queue is not None:
         _give_passes_back(session, party)
         party.queue = None
@@ -255,116 +242,13 @@ def _role_names(chosen: list[int]) -> str:
     return ", ".join(ROLES[ROLE_NUMBERS[number]] for number in chosen) or "none"
 
 
-def _practice_state(session: Session, state: int, token: int = PRACTICE_STATE_TOKEN) -> dict:
-    """Build the 53000 activity-state record proven by tools/probe_practice.py."""
-    value = session.server.schemas.empty(GAME_STATE, 53000)
-    value["+0x78"]["+0x60"] = state
-    value["+0xE8"] = token
-    return value
-
-
 @routes.on(GAME_REQUEST, 24000)
 def create_game(session: Session, value: dict) -> None:
     if (value.get("+0x78"), value.get("+0xA8")) == PRACTICE_RANGE:
         # The Practice Range request carries a creation kind, not a mode GUID.
-        instance = _allocate_game(session, 0, "practice")
-        if instance is None:
-            return
-        # Research probe established that state 4 is accepted by this client and answered by 52903.
-        # This is only the pre-handoff transition; it does not claim that a playable match starts.
-        session.practice_state_pending = {
-            "instance": instance.directory.name,
-            "port": instance.port,
-            "token": PRACTICE_STATE_TOKEN,
-        }
-        if session.send(
-            GAME_STATE,
-            53000,
-            _practice_state(session, PRACTICE_SEARCH_STATE),
-        ):
-            session.log(
-                f"[MM] practice: sent state {PRACTICE_SEARCH_STATE} (53000); waiting for 52903"
-            )
-        else:
-            session.practice_state_pending = None
-            session.log("[MM] practice: client did not announce the 53000 state protocol")
+        session.server.matchmaker.practice(session)
     else:
         session.log(f"[MM] Unknown create-game request: {to_jsonable(value)}")
-
-
-def _practice_handoff(session: Session, instance, host: str = "127.0.0.1") -> dict:
-    """Build the 20600 endpoint assignment and directional AES-GCM transport credentials.
-
-    Runtime analysis of the 1.74 client shows that nested +0x18/+0xAE initialize the client's
-    transmit authenticator and +0x20/+0xCE initialize its receive authenticator. Each pair is an
-    8-byte nonce base plus a 32-byte AES-256 key.
-    """
-    value = session.server.schemas.empty(HANDOFF, 20600)
-    encoded_host = host.encode("ascii")
-    if len(encoded_host) >= 64:
-        raise ValueError("handoff host must fit in the 64-byte endpoint field")
-    if not 0 <= instance.port <= 0xFFFF:
-        raise ValueError("handoff port must fit in the nested +0x2C u16")
-
-    value["+0x78"] = True
-    record = value["+0x80"]
-    # Controlled A/B test: these are the exact pre-crypto markers from the historical handoff
-    # that made the 1.74 client emit UDP. Keep the real endpoint and AES-GCM material below so
-    # this run isolates the identity/transport trio from the crypto fields.
-    record["+0x0"]["+0x0"] = 0x1111111111111111
-    record["+0x0"]["+0x8"] = 0x2222222222222222
-    record["+0x10"] = 0x3333333333333333
-    record["+0x18"] = 0x4444444444444444
-    record["+0x20"] = 0x5555555555555555
-    record["+0x28"] = 0x28282828
-    # The endpoint remains the live worker endpoint; every other populated handoff field now
-    # matches the historical diagnostic payload that caused the client to emit UDP.
-    record["+0x2C"] = instance.port
-    record["+0x2E"] = list(encoded_host + b"\x00")
-    record["+0xAE"] = [0xAA] * 32
-    record["+0xCE"] = [0xCC] * 32
-    return value
-
-
-@routes.on(GAME_STATE_ACK, 52903)
-def practice_state_ack(session: Session, value: dict) -> None:
-    pending = getattr(session, "practice_state_pending", None)
-    acknowledged = value.get("+0x78")
-    if pending is None:
-        session.log(f"[MM] State acknowledgement (52903) without pending Practice Range: {acknowledged}")
-        return
-    if acknowledged is True:
-        session.log(
-            f"[MM] practice: state 4 acknowledged (52903); "
-            f"instance {pending['instance']} UDP 127.0.0.1:{pending['port']} is ready for handoff research"
-        )
-        instance = session.server.matches.instances.get(str(session.conn_id))
-        if instance is None or instance.directory.name != pending["instance"]:
-            session.log("[MM] practice: local instance disappeared before 20600 handoff")
-            session.practice_state_pending = None
-            return
-        handoff = _practice_handoff(session, instance)
-        session.log("[MM] practice: 20600 includes directional AES-GCM transport credentials")
-        if session.send(HANDOFF, 20600, handoff):
-            session.log(f"[MM] practice: 20600 handoff sent to 127.0.0.1:{pending['port']}")
-        else:
-            session.log("[MM] practice: client did not announce the 20600 handoff protocol")
-    else:
-        session.log(f"[MM] practice: state 4 rejected (52903): {acknowledged}")
-    session.practice_state_pending = None
-
-
-def _allocate_game(session: Session, mode: int, activity: str):
-    matches = session.server.matches
-    if matches is None:
-        session.log("[MM] Game instances are off (--game-port 0)")
-        return None
-    instance = matches.request(session.conn_id, session.account.name, mode, activity)
-    session.log(
-        f"[MM] {activity}: instance {instance.directory.name}, PID {instance.process.pid}, "
-        f"UDP 127.0.0.1:{instance.port}, waiting for the game client"
-    )
-    return instance
 
 
 # The group finder. The client sends 52200-52205 (9529F0ED) and gets its answers in 52300-52302
