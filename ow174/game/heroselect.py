@@ -78,7 +78,7 @@ def controller_frame(
     host = Instance(2, HERO_SELECT_HOST, parent=(1, controller.select_state), active={0: subscript(3)})
     screen = Instance(3, HERO_SELECT, parent=(2, 0))
     instances = [
-        Instance(1, controller.graph, presence={controller.allow_bit: Bool(True)}, active=active),
+        Instance(\n            1,\n            controller.graph,\n            presence={controller.allow_bit: Bool(True)},\n            active=active,\n            # Probe the descriptor-resolution creation mode on the Practice controller root.\n            # The client consumes this flag while resolving descriptor identity, before parent/state\n            # application; prior testing only applied it to the 20E4 child.\n            instance_flag=controller is PRACTICE,\n        ),
         host,
         screen,
     ]
