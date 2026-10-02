@@ -316,9 +316,19 @@ def soldier_body_roots_probe(cmfd: int) -> BitWriter:
     # Both 0015 and 0254 descriptors are now live-proven safe.  Start 0254 state isolation from
     # that clean control with owner bit 0 as the sole active weapon state.  No weapon variables or
     # manager states are sent yet, so a change in behavior is attributable to 0254 bit 0.
-    # 0254 owner bits 0 and 31 (Ability) both crash when activated bare.  Do not continue
-    # blind state scanning: return to the live-proven descriptor-only weapon control.  The next
-    # HUD work is to reconstruct 0254's required initialization variables/state payloads first.
+    # 0254's ordinary Entry reaches its initialization chain separately from its initial Stack.
+    # Reproduce only the literal instance writes first, with every 0254 state still off.  This
+    # isolates the arbitrary-id variable serialization before retrying BooleanSwitch/Ability states.
+    weapon.extra.update({
+        476: Float(20.0),
+        581: Float(1.5),
+        6884: Float(0.511),
+        6885: Float(0.1),
+        229: Int(0),
+        230: Float(0.0),
+        1769: Int(100),
+        1770: Int(100),
+    })
     return owner_full_frame(cmfd, instances, {})
 
 
