@@ -284,11 +284,12 @@ def soldier_body_roots_probe(cmfd: int) -> BitWriter:
     health = next(item for item in instances if item.graph.index == 0x0033)
     health.active = {bit: None for bit in (0, 1, 2, 3, 5, 8)}
 
-    # 004B owner bit 1 crashes as a standalone payload-free state too.  Continue the direct
-    # serialized-state walk rather than trusting the reconstructed startup tuple.  Keep the proven
-    # 0033 baseline unchanged and test only 004B owner bit 2, with no child descriptor or payload.
+    # 004B owner bits 1 and 2 both crash as standalone payload-free states.  Continue the direct
+    # serialized-state walk with bit 3, still keeping the proven 0033 baseline unchanged and adding
+    # no child descriptor/payload.  The repeated failures are evidence that these bits are not
+    # generic booleans; do not fold them into the startup set until their state-specific encoding is known.
     parent = next(item for item in instances if item.graph.index == 0x004B)
-    parent.active[2] = None
+    parent.active[3] = None
     return owner_full_frame(cmfd, instances, {})
 
 
