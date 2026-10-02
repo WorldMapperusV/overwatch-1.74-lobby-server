@@ -136,6 +136,7 @@ class Player:
         """The next body id, at the spawn point: the server's flat mover is not exact enough to put a
         new body where the old one stood. Ids cycle through the player's 255."""
         self.body = self.entity | ((self.body & 0xFF) % 255 + 1)
+        self.body_script = Stream(self.body)
         self.mover = FlatMover(self.spawn[0], _yaw_units(self.spawn[1]))
 
     def describe(self) -> str:
