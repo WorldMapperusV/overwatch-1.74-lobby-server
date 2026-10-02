@@ -268,17 +268,22 @@ def owner_full_frame(cmfd: int, instances: list[Instance], entity_vars: dict[int
 
 
 def soldier_body_roots_probe(cmfd: int) -> BitWriter:
-    """Probe 004B raw/owner state 0 with its required SubScript payload.
+    """Add 004B state 0 + child 01C7 on top of the proven coherent 0033 startup set.
 
-    0033 owner bit 2 is raw state 3 (HealthPool), not a generic startup bit; activating it by itself
-    crashes while its sibling HealthPool bits 0 and 1 survive.  Leave 0033 off for now and validate
-    the child-bearing 004B path needed by the Soldier HUD.  004B state 0 is a SubScript and therefore
-    must carry the child instance id; sending the state bit alone is not a valid probe.
+    The previous live test established that 0033 owner bits 0,1,2,3,5,8 are accepted together.
+    004B state 0 is a SubScript, so it must carry a child instance id and the matching 01C7
+    descriptor must be present; sending the state bit alone is not a structurally valid probe.
     """
     instances = [
         Instance(index, graph)
         for index, graph in enumerate(SOLDIER_BODY_GRAPHS, start=1)
     ]
+    # Keep the now-proven coherent 0033 startup configuration as the baseline while adding
+    # the first 004B child-bearing state. This makes the probe cumulative: any regression from
+    # the previous live test is attributable to 004B state 0 / child 01C7.
+    health = next(item for item in instances if item.graph.index == 0x0033)
+    health.active = {bit: None for bit in (0, 1, 2, 3, 5, 8)}
+
     parent = next(item for item in instances if item.graph.index == 0x004B)
     child_id = 10
     parent.active[0] = subscript(child_id)
