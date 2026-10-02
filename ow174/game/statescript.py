@@ -284,12 +284,12 @@ def soldier_body_roots_probe(cmfd: int) -> BitWriter:
     health = next(item for item in instances if item.graph.index == 0x0033)
     health.active = {bit: None for bit in (0, 1, 2, 3, 5, 8)}
 
-    # 01C7 also crashes when introduced as an unattached network instance, so do not treat a
-    # SubScript graph as an independently creatable root.  Return to the proven root-only baseline
-    # and advance to 004B's next non-child state.  This keeps the child-instance question separate
-    # from validating the root graph's ordinary startup states.
+    # 004B owner bit 12 also crashes by itself, so the old candidate startup mapping for 004B
+    # is not trustworthy.  Start walking 004B's serialized state vector from bit zero with no child
+    # descriptor/payload.  This intentionally asks only whether bit 1 is a payload-free state; bit 0
+    # is known to be the child-bearing SubScript path and is therefore skipped in this probe.
     parent = next(item for item in instances if item.graph.index == 0x004B)
-    parent.active[12] = None
+    parent.active[1] = None
     return owner_full_frame(cmfd, instances, {})
 
 
