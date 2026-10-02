@@ -284,11 +284,11 @@ def soldier_body_roots_probe(cmfd: int) -> BitWriter:
     health = next(item for item in instances if item.graph.index == 0x0033)
     health.active = {bit: None for bit in (0, 1, 2, 3, 5, 8)}
 
-    # Active 004B bits 1, 2, 3, 12, and 38 all crash under the current serializer.  Before
-    # attributing that to 004B-specific state payloads, re-run the exact proven root-only baseline:
-    # nine descriptors plus the coherent 0033 set, with every 004B state off.  This guards against
-    # a regression elsewhere in the frame path and gives the next reader/disassembly work a clean
-    # control sample rather than continuing low-information state-bit probes.
+    # The supposed coherent 0033 baseline also crashes on a clean retest, so it was never a
+    # reliable control.  Return all nine Soldier roots to the one configuration that was actually
+    # reproduced as safe: descriptors only, every owner state off.  Do not infer state semantics
+    # from any later probe until this baseline is reconfirmed.
+    health.active = {}
     return owner_full_frame(cmfd, instances, {})
 
 
