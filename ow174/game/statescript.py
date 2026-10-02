@@ -311,7 +311,10 @@ def soldier_body_roots_probe(cmfd: int, body_entity: int) -> BitWriter:
     # live-proven safe, but activating owner bit 11 bare crashes during Hero Selection.  That state
     # is a BooleanSwitch and therefore needs its class-specific lifecycle/payload reconstructed
     # before it can be serialized.  Keep the manager state-free as the proven control.
-    instances.append(Instance(10, SOLDIER_WEAPON_MANAGER))
+    # 0015 raw state 44 / owner bit 34 is a genuine remote-sync leaf.  It exports v3772,
+    # one of the values consumed by 01CF's 56-value HUD bundle.  Unlike owner bit 11 this is
+    # STU_9D7BF987, not local BooleanSwitch control flow.
+    instances.append(Instance(10, SOLDIER_WEAPON_MANAGER, active={34: None}))
 
     # 0015's descriptor is now live-proven safe.  Add Soldier's primary weapon graph 0254 as a
     # second descriptor-only instance.  Keep both graphs' states and variables off: this isolates
@@ -357,7 +360,15 @@ def soldier_body_roots_probe(cmfd: int, body_entity: int) -> BitWriter:
     )
     for parent_state, child_id, graph_index in child_specs:
         body.active[parent_state] = subscript(child_id)
-        active = {40: None} if graph_index == 0x01CF else {}
+        # Reconstruct the remote-sync fan-in that feeds 01CF's HUD bundle.  02C5 raw state
+        # 31 / owner bit 12 exports v478; 01CF raw 140 / owner bit 40 exports the aggregate.
+        # Both are STU_9D7BF987 remote-sync leaves, not lifecycle-sensitive control states.
+        if graph_index == 0x01CF:
+            active = {40: None}
+        elif graph_index == 0x02C5:
+            active = {12: None}
+        else:
+            active = {}
         instances.append(
             Instance(
                 child_id,
@@ -372,6 +383,11 @@ def soldier_body_roots_probe(cmfd: int, body_entity: int) -> BitWriter:
     # reproduce those two literal instance values next while leaving all other 01CF states off.
     hud_source = next(item for item in instances if item.graph.index == 0x01CF)
     hud_source.extra.update({7044: Bool(True), 8831: Bool(True)})
+
+    # 0259 raw state 45 / owner bit 43 exports v1030 and v17858 into the same 01CF HUD
+    # bundle.  This completes every reachable upstream remote-sync producer of that bundle.
+    soldier_0259 = next(item for item in instances if item.graph.index == 0x0259)
+    soldier_0259.active[43] = None
 
     # Do not assert 01CF state 32 / owner bit 22 here.  Live testing of the otherwise extracted
     # 01CF -> 0E8F startup path crashes during Hero Selection, so this branch is lifecycle-dependent
