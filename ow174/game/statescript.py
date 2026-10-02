@@ -231,6 +231,33 @@ def _variables(out: BitWriter, variables: dict[int, Value]) -> None:
     out.w_var(0)
 
 
+def _state_vector(out: BitWriter, count: int, active: dict[int, BitWriter | None]) -> list[int]:
+    """Write the state-update bitset exactly as D530E0 decodes it.
+
+    Up to eight states are written directly.  Larger vectors are sparse by 8-state chunks:
+    first one presence bit per chunk, then the raw bits for each non-empty chunk.
+    """
+    selected = [bit for bit in range(count) if bit in active]
+    if count <= 8:
+        for bit in range(count):
+            out.bit(bit in active)
+        return selected
+
+    chunks = (count + 7) // 8
+    nonempty = []
+    for chunk in range(chunks):
+        start = chunk * 8
+        width = min(8, count - start)
+        present = any((start + i) in active for i in range(width))
+        out.bit(present)
+        if present:
+            nonempty.append((start, width))
+    for start, width in nonempty:
+        for i in range(width):
+            out.bit((start + i) in active)
+    return selected
+
+
 def owner_full_frame(cmfd: int, instances: list[Instance], entity_vars: dict[int, Value], *, state_controls: bool = False) -> BitWriter:
     """An owner (H=1) full frame. `cmfd` must be larger than any CmFD sent to this entity before."""
     if cmfd < 1:
@@ -262,14 +289,10 @@ def owner_full_frame(cmfd: int, instances: list[Instance], entity_vars: dict[int
             _variables(out, instance.extra)
         else:
             out.bit(0)
-        # A0C620 first bulk-reads the complete owner-state presence vector (D530E0), then
-        # iterates its set bits. Per-active-state control/data follows the whole vector.
-        active_bits = []
-        for bit in range(instance.graph.owner_states):
-            on = bit in instance.active
-            out.bit(on)
-            if on:
-                active_bits.append(bit)
+        # A0C620 obtains this mask through D530E0.  For >8 states D530E0 does NOT read
+        # one flat bit per state: it reads a sparse byte-chunk mask followed by the populated
+        # chunks.  Writing a flat vector here shifted every subsequent lifecycle/payload bit.
+        active_bits = _state_vector(out, instance.graph.owner_states, instance.active)
         if state_controls:
             for bit in active_bits:
                 out.bit(1)  # ordinary A0C8A5 path: create/apply this active state
@@ -289,90 +312,45 @@ def owner_full_frame(cmfd: int, instances: list[Instance], entity_vars: dict[int
 
 
 def soldier_body_roots_probe(cmfd: int, body_entity: int) -> BitWriter:
-    """Add 004B state 0 + child 01C7 on top of the proven coherent 0033 startup set.
+    """Wire-layout probe derived from A0F080/A0CA20/A0C620.
 
-    The previous live test established that 0033 owner bits 0,1,2,3,5,8 are accepted together.
-    004B state 0 is a SubScript, so it must carry a child instance id and the matching 01C7
-    descriptor must be present; sending the state bit alone is not a structurally valid probe.
+    The per-instance reader calls A0CA20 (instance variables) and then A0C620 (states).
+    Both presence sets are decoded by D530E0.  There is no per-instance event terminator between
+    A0C620 and the next instance; A0B850 is called once after the complete instance loop.
+    Keep this probe empty so no state/variable payload decoder can affect the result.
     """
     instances = [
         Instance(index, graph)
         for index, graph in enumerate(SOLDIER_BODY_GRAPHS, start=1)
     ]
-    # Keep the now-proven coherent 0033 startup configuration as the baseline while adding
-    # the first 004B child-bearing state. This makes the probe cumulative: any regression from
-    # the previous live test is attributable to 004B state 0 / child 01C7.
-    health = next(item for item in instances if item.graph.index == 0x0033)
-    health.active = {bit: None for bit in (0, 1, 2, 3, 5, 8)}
 
-    # Clean A/B testing now proves 0033 owner bit 6 is also accepted.  Confirmed-safe together:
-    # 0, 1, 2, 4, 6.  Bare activation of 3 and 5 crashes.  Keep the safe set and add owner bit 7
-    # as the sole new change, continuing the direct map before investigating the failing states'
-    # state-specific payload or initialization requirements.
-    # Complete live classification: bare activation is safe for 0,1,2,4,6,7,8,11 and crashes
-    # for 3,5,9,10.  Keep the full known-safe set as the new control while BooleanSwitch (3,5)
-    # and Stack (9,10) are investigated separately.
-    health.active = {bit: None for bit in (0, 1, 2, 4, 6, 7, 8, 11)}
+    out = BitWriter()
+    out.bit(0)  # lead
+    out.bit(1)  # H
+    out.bit(0)  # C
+    out.w_var(cmfd)
 
-    # HUD reconstruction now moves to the weapon path.  20E4 itself is already alive; Soldier's
-    # definition-level weapon manager (0015) is the next upstream graph.  Add only its descriptor,
-    # with every manager state/variable off, so this test answers whether 0015 can coexist with the
-    # proven body-root frame before we attempt 0254 or any UX/ability state.
-    instances.append(Instance(10, SOLDIER_WEAPON_MANAGER))
+    ordered = sorted(instances, key=lambda item: item.index)
+    last = 0
+    for instance in ordered:
+        out.w_u16(instance.index - last)
+        last = instance.index
+        _descriptor(out, instance)
+    out.w_u16(0)
+    out.bit(0)  # no entity-variable list
 
-    # 0015's descriptor is now live-proven safe.  Add Soldier's primary weapon graph 0254 as a
-    # second descriptor-only instance.  Keep both graphs' states and variables off: this isolates
-    # whether the primary weapon object itself is accepted before enabling ammo/ability/UX states.
-    weapon = Instance(11, SOLDIER_PRIMARY_WEAPON)
-    instances.append(weapon)
+    for instance in ordered:
+        # A0CA20: instance-variable presence set, decoded through D530E0.
+        _state_vector(out, instance.graph.sync_vars, {})
+        out.bit(0)  # no sparse/extra variable-id list
 
-    # Both 0015 and 0254 descriptors are now live-proven safe.  Start 0254 state isolation from
-    # that clean control with owner bit 0 as the sole active weapon state.  No weapon variables or
-    # manager states are sent yet, so a change in behavior is attributable to 0254 bit 0.
-    # 0254's ordinary Entry reaches its initialization chain separately from its initial Stack.
-    # Reproduce only the literal instance writes first, with every 0254 state still off.  This
-    # isolates the arbitrary-id variable serialization before retrying BooleanSwitch/Ability states.
-    weapon.extra.update({
-        476: Float(20.0),
-        581: Float(1.5),
-        6884: Float(0.511),
-        6885: Float(0.1),
-        229: Int(0),
-        230: Float(0.0),
-        1769: Int(100),
-        1770: Int(100),
-    })
+        # A0C620: state presence/update set, also decoded through D530E0.
+        _state_vector(out, instance.graph.owner_states, {})
 
-    # HUD dependency found in the extracted graphs: 20E4's sole owner state is the remote-sync
-    # state for v17906/v18405.  Soldier's 01CF child contains the matching source-side remote-sync
-    # state at raw state 140 / owner bit 40.  Attach only that real 004B -> 01CF SubScript and turn
-    # on its remote-sync state; do not enable 01CF's speculative startup states yet.
-    body = next(item for item in instances if item.graph.index == 0x004B)
-    child_id = 12
-    body.active[3] = subscript(child_id)
-    instances.append(
-        Instance(
-            child_id,
-            SOLDIER_CHILD_GRAPHS[0x01CF],
-            parent=(body.index, 3),
-            active={40: None},
-        )
-    )
-
-    # Live result: connecting 01CF's remote-sync state removes 20E4's red "Unavailable" ultimate
-    # marker.  That proves this is the real HUD feed.  01CF Entry initializes v7044/v8831=true;
-    # reproduce those two literal instance values next while leaving all other 01CF states off.
-    hud_source = instances[-1]
-    hud_source.extra.update({7044: Bool(True), 8831: Bool(True)})
-
-    # The reconstructed 01CF Entry-20 presenter set (bits 0,1,2,4,28 plus v2580/v1900)
-    # still crashes.  Restore the only live-proven HUD path: 004B -> 01CF with remote-sync bit 40
-    # and the harmless Entry literals v7044/v8831.  Nested Stack/BooleanSwitch/UXPresenter states
-    # need class-specific network payload/lifecycle handling before they can be serialized safely.
-    # A0C620 proves the client bulk-reads the entire state vector and only then consumes
-    # per-active-state control bits. Retry the previously crashing 0033 BooleanSwitch bit 3 with
-    # that corrected framing, on top of the proven HUD baseline.
-    return owner_full_frame(cmfd, instances, {})
+    # A0F108 calls A0B850 once after all instances.  Preserve the existing empty frame-event
+    # representation, but do not insert the old per-instance 0b11 fields.
+    out.bits(0, 2)
+    return out
 
 
 def soldier_body_frame(cmfd: int) -> BitWriter:
