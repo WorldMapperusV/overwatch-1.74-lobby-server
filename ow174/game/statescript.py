@@ -270,6 +270,77 @@ def owner_full_frame(cmfd: int, instances: list[Instance], entity_vars: dict[int
 
 
 
+
+def soldier_body_frame(cmfd: int) -> BitWriter:
+    """Soldier: 76's complete initial owner frame.
+
+    Runtime instance ids are ours to assign.  Roots are 1..9, recursively-created SubScripts 10..17,
+    then the definition-level weapon manager and primary weapon are 18 and 19.  Parent descriptors
+    use the parent's STATE index; the active-state dictionary uses owner-frame bit indices.
+    """
+    roots = {graph.index: i + 1 for i, graph in enumerate(SOLDIER_BODY_GRAPHS)}
+    instances = [
+        Instance(
+            roots[graph.index],
+            graph,
+            active={bit: None for bit in SOLDIER_INITIAL_OWNER_BITS[graph.index]},
+        )
+        for graph in SOLDIER_BODY_GRAPHS
+    ]
+
+    child_ids: dict[int, int] = {}
+    next_id = 10
+    for parent_graph, parent_state, child_graph in SOLDIER_INITIAL_CHILDREN:
+        child_ids[child_graph] = next_id
+        next_id += 1
+
+    def instance_id(graph: int) -> int:
+        return roots.get(graph) or child_ids[graph]
+
+    # The SubScript state's serialized owner bit can differ from its graph state index.  Of Soldier's
+    # startup children only 01CF state 32 is shifted by filtered client-only states: state 32 -> bit 22.
+    child_owner_bit = {(0x01CF, 32): 22}
+    for parent_graph, parent_state, child_graph in SOLDIER_INITIAL_CHILDREN:
+        parent_id = instance_id(parent_graph)
+        child_id = child_ids[child_graph]
+        parent = next(item for item in instances if item.index == parent_id)
+        bit = child_owner_bit.get((parent_graph, parent_state), parent_state)
+        parent.active[bit] = subscript(child_id)
+        instances.append(
+            Instance(
+                child_id,
+                SOLDIER_CHILD_GRAPHS[child_graph],
+                parent=(parent_id, parent_state),
+                active={bit: None for bit in SOLDIER_INITIAL_CHILD_OWNER_BITS[child_graph]},
+            )
+        )
+
+    manager = Instance(
+        18,
+        SOLDIER_WEAPON_MANAGER,
+        active={bit: None for bit in SOLDIER_WEAPON_INITIAL_OWNER_BITS[0x0015]},
+    )
+    weapon = Instance(
+        19,
+        SOLDIER_PRIMARY_WEAPON,
+        active={bit: None for bit in SOLDIER_WEAPON_INITIAL_OWNER_BITS[0x0254]},
+    )
+    instances += [manager, weapon]
+
+    # Literal server Entry writes.  Send them by variable id rather than guessing compact presence
+    # slots; the full-frame variable list accepts instance variables by id.
+    by_graph = {item.graph.index: item for item in instances}
+    by_graph[0x0043].extra.update({476: Int(30), 215: Float(.5), 1258: Int(0), 1257: Int(1)})
+    by_graph[0x0255].extra.update({1002: Float(.5), 636: Float(.3)})
+    by_graph[0x01CF].extra.update({7044: Bool(True), 8831: Bool(True)})
+    weapon.extra.update({
+        476: Int(20), 581: Float(1.5), 6884: Float(.511), 6885: Float(.1),
+        229: Int(0), 230: Int(0), 1769: Int(100), 1770: Int(100),
+    })
+    entity_vars = {32350: Float(.3), 14676: Bool(True), 31296: Int(1)}
+    return owner_full_frame(cmfd, instances, entity_vars)
+
+
 def variables_frame(entity_vars: dict[int, Value]) -> BitWriter:
     """A plain (H=0) full frame with no instances, only entity variables: how an entity without
     graphs of its own, such as the game mode entity, gets values that other graphs read from it."""
