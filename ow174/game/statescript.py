@@ -44,6 +44,34 @@ HERO_SELECT_HOST = Graph(0x288A, 6, 0)
 HERO_SELECT = Graph(0x288B, 30, 4)  # presents the hero select screen 008C.05A
 TEAM_ENTRY = Graph(0x288D, 0, 0)  # client-only: posts its entity to the local player's team list
 
+# Soldier: 76's body definition 03CF starts these nine graphs, in this definition order.  The
+# second number is the owner-frame state-bit count; the third is the count of instance-scoped sync
+# variables (not the graph's padded sync table length).  Keep the complete set together in any body
+# owner full-frame probe: the client treats an omitted network instance as destroyed.
+SOLDIER_BODY_GRAPHS = (
+    Graph(0x0033, 12, 4),
+    Graph(0x004B, 39, 4),
+    Graph(0x0043, 27, 7),
+    Graph(0x0251, 3, 0),
+    Graph(0x0255, 31, 9),
+    Graph(0x0257, 21, 6),
+    Graph(0x0259, 44, 7),
+    Graph(0x091B, 2, 0),
+    Graph(0x08B6, 13, 2),
+)
+
+# 004B's creation entry starts five SubScripts simultaneously.  Their parent STATE indices are
+# 0, 3, 5, 10 and 18 respectively (descriptor parents use state indices, not owner-bit indices).
+# In particular 01CF is the child containing several UX presenters and the network sync for v17906,
+# one of 20E4's HUD inputs.  This is why probing 0257 alone could never reconstruct the ability HUD.
+SOLDIER_004B_INITIAL_CHILDREN = (
+    (0, Graph(0x01C7, 44, 1)),
+    (3, Graph(0x01CF, 41, 22)),
+    (5, Graph(0x02C5, 13, 4)),
+    (10, Graph(0x0B8B, 4, 0)),
+    (18, Graph(0x0C7D, 0, 0)),
+)
+
 class Value:
     tag: int
 
