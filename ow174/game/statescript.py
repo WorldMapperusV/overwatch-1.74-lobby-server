@@ -338,8 +338,8 @@ def soldier_body_roots_probe(cmfd: int, body_entity: int) -> BitWriter:
 
     # HUD dependency found in the extracted graphs: 20E4's sole owner state is the remote-sync
     # state for v17906/v18405.  Soldier's 01CF child contains the matching source-side remote-sync
-    # state at raw state 140 / owner bit 40.  Attach only that real 004B -> 01CF SubScript and turn
-    # on its remote-sync state; do not enable 01CF's speculative startup states yet.
+    # state at raw state 140 / owner bit 40.  Keep that state as the HUD source while restoring
+    # 004B's complete immediate child topology below.
     body = next(item for item in instances if item.graph.index == 0x004B)
 
     # 004B's Entry starts five sibling SubScripts together.  Full owner frames are authoritative:
