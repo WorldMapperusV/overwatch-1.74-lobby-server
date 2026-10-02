@@ -127,6 +127,9 @@ class Player:
         # Entity records process StateScript channel 1 before component channel 4, so sending both in
         # the pick frame can evaluate hero graph state before body creation/possession has settled.
         self.body_script_pending = False
+        # Practice: after a pick, first close hero select without 20E4.  Attach the HUD only after
+        # that authoritative controller frame (and the deferred body frame) has drained.
+        self.practice_hud_pending = False
 
     @property
     def team_bit(self) -> int:
@@ -340,6 +343,10 @@ class Match:
                 )
                 player.body_script_pending = False
                 log.info("[game] %s: %s's body statescript sent after possession", self.label(), player.name)
+            if player.practice_hud_pending and not player.body_script_pending and not client.entities:
+                player.practice_hud_pending = False
+                self.send_controller(player)
+                log.info("[game] %s: %s's Practice HUD attached after select teardown", self.label(), player.name)
             if player.body_script.data_last and now >= player.body_script.next_ack:
                 self._owner_ack(player, player.body_script, now)
             if self.assembling() and player.steps_done >= 4 and now >= player.next_countdown:
@@ -401,6 +408,8 @@ class Match:
             self._send_countdown(player, now)
             if player.has_body:
                 player.select_open = False
+            if self.controller is heroselect.PRACTICE:
+                player.practice_hud_pending = True
             self.send_controller(player)
 
     # --- the player's statescript --------------------------------------------------------------
@@ -421,7 +430,7 @@ class Match:
         # Practice's 20E4 HUD graph resolves possession/context from client-only creation Entry
         # states.  Do not create it on the pre-pick controller frame, when there is no possessed
         # body yet; attach it for the first time in the controller frame sent after switch_hero().
-        include_hud = not practice or player.has_body
+        include_hud = not practice or (player.has_body and not player.practice_hud_pending)
         frame = heroselect.controller_frame(
             self.controller, cmfd, player.select_open, skins, practice, include_hud
         )
