@@ -312,6 +312,10 @@ def soldier_body_roots_probe(cmfd: int, body_entity: int) -> BitWriter:
     # for 3,5,9,10.  Keep the full known-safe set as the new control while BooleanSwitch (3,5)
     # and Stack (9,10) are investigated separately.
     health.active = {bit: None for bit in (0, 1, 2, 4, 6, 7, 8, 11)}
+    # 0033's server-side creation Entry writes v32350=.3.  A network-created graph does not
+    # execute that server Entry locally, so carry the literal initialization in its instance
+    # variable tail before any dependent health/HUD state evaluates.
+    health.extra[32350] = Float(0.3)
 
     # HUD reconstruction now moves to the weapon path.  20E4 itself is already alive; Soldier's
     # definition-level weapon manager (0015) is the next upstream graph.  Its descriptor is
@@ -356,6 +360,8 @@ def soldier_body_roots_probe(cmfd: int, body_entity: int) -> BitWriter:
     # state at raw state 140 / owner bit 40.  Keep that state as the HUD source while restoring
     # 004B's complete immediate child topology below.
     body = next(item for item in instances if item.graph.index == 0x004B)
+    # 004B's creation Entry also writes v14676=true.
+    body.extra[14676] = Bool(True)
 
     # 004B's Entry starts five sibling SubScripts together.  Full owner frames are authoritative:
     # omitting network-created siblings destroys them, so running 01CF alone leaves its HUD source
@@ -381,14 +387,16 @@ def soldier_body_roots_probe(cmfd: int, body_entity: int) -> BitWriter:
             active = {12: None}
         else:
             active = {}
-        instances.append(
-            Instance(
-                child_id,
-                SOLDIER_CHILD_GRAPHS[graph_index],
-                parent=(body.index, parent_state),
-                active=active,
-            )
+        child = Instance(
+            child_id,
+            SOLDIER_CHILD_GRAPHS[graph_index],
+            parent=(body.index, parent_state),
+            active=active,
         )
+        # 01C7's server-side creation Entry initializes v31296=1.
+        if graph_index == 0x01C7:
+            child.extra[31296] = Int(1)
+        instances.append(child)
 
     # Live result: connecting 01CF's remote-sync state removes 20E4's red "Unavailable" ultimate
     # marker.  That proves this is the real HUD feed.  01CF Entry initializes v7044/v8831=true;
