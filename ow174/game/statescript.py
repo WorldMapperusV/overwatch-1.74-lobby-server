@@ -284,11 +284,10 @@ def soldier_body_roots_probe(cmfd: int) -> BitWriter:
     health = next(item for item in instances if item.graph.index == 0x0033)
     health.active = {bit: None for bit in (0, 1, 2, 3, 5, 8)}
 
-    # Descriptor-only roots are now reconfirmed safe.  Restart state isolation from that clean
-    # control with exactly one change: 0033 owner bit 0.  No other root state, child, or variable is
-    # present, so this result can be attributed to this bit without the contaminated 0033 baseline
-    # used by the earlier 004B probes.
-    health.active = {0: None}
+    # Clean A/B testing now proves 0033 owner bit 0 is accepted.  Keep that single known-safe
+    # state and add owner bit 1 as the only new change.  All other root states, children, and
+    # variables remain absent so the result isolates bit 1.
+    health.active = {0: None, 1: None}
     return owner_full_frame(cmfd, instances, {})
 
 
