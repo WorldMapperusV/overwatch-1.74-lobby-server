@@ -305,7 +305,10 @@ def soldier_body_roots_probe(cmfd: int, body_entity: int) -> BitWriter:
     # definition-level weapon manager (0015) is the next upstream graph.  Add only its descriptor,
     # with every manager state/variable off, so this test answers whether 0015 can coexist with the
     # proven body-root frame before we attempt 0254 or any UX/ability state.
-    instances.append(Instance(10, SOLDIER_WEAPON_MANAGER))
+    # 0015's descriptor is live-proven safe. Its extracted Entry path selects owner bit 11 before
+    # the primary weapon graph is useful. Probe that manager state by itself while keeping 0254
+    # state-free; this changes only one state bit relative to the reconfirmed 714a123b baseline.
+    instances.append(Instance(10, SOLDIER_WEAPON_MANAGER, active={11: None}))
 
     # 0015's descriptor is now live-proven safe.  Add Soldier's primary weapon graph 0254 as a
     # second descriptor-only instance.  Keep both graphs' states and variables off: this isolates
