@@ -29,7 +29,7 @@ from ow174.game import heroselect, world
 from ow174.game.commands import Command, CommandQueue
 from ow174.game.content import SOLDIER, GameMap, Hero, heroes, spawn_point
 from ow174.game.mover import FlatMover
-from ow174.game.statescript import Float, Stream, owner_ack, variables_frame
+from ow174.game.statescript import Float, Stream, owner_ack, soldier_ability_frame, variables_frame
 from ow174.game.world import (
     OP_CREATE,
     OP_DESTROY,
@@ -111,6 +111,7 @@ class Player:
         # Other players' bodies this player's client has: body -> False in the frame of its create.
         self.seen: dict[int, bool] = {}
         self.script = Stream(self.entity)  # the player entity's statescript: the controller
+        self.body_script = Stream(self.body)  # the possessed body's owner statescript
         self.mode_script = Stream(GAME_MODE_ENTITY)  # the game mode entity's variables: the countdown
         self.next_countdown = 0.0
         self.select_open = True
@@ -135,6 +136,7 @@ class Player:
         """The next body id, at the spawn point: the server's flat mover is not exact enough to put a
         new body where the old one stood. Ids cycle through the player's 255."""
         self.body = self.entity | ((self.body & 0xFF) % 255 + 1)
+        self.body_script = Stream(self.body)
         self.mover = FlatMover(self.spawn[0], _yaw_units(self.spawn[1]))
 
     def describe(self) -> str:
@@ -236,11 +238,17 @@ class Match:
         """The viewer's own body: its movement state rides in the create (at frame 0xFFFFFFFE) and in a
         movement record at the packet frame, as in ProCore's working spawn."""
         state = viewer.movement()
-        return [
+        updates = [
             EntityUpdate(
                 viewer.body, OP_CREATE, lambda origin: self._body_create(origin, viewer, state), state
             )
         ]
+        # First body-StateScript probe: Soldier's definition-order graph 0257. Keep it on the body
+        # entity (not the controller) and reproduce only the graph's normal Entry state.
+        if viewer.hero.guid == SOLDIER:
+            cmfd = viewer.body_script.next_cmfd(self._newest_frame(viewer))
+            updates.append(viewer.body_script.full_frame(soldier_ability_frame(cmfd)))
+        return updates
 
     def _body_create(self, origin: int, owner: Player, state: Movement | None) -> world.RecordWriter:
         components = world.health(HEALTH, HEALTH)
@@ -319,6 +327,8 @@ class Match:
                 self._spawn_steps(player, client, now)
             if player.script.data_last and now >= player.script.next_ack:
                 self._owner_ack(player, player.script, now)
+            if player.body_script.data_last and now >= player.body_script.next_ack:
+                self._owner_ack(player, player.body_script, now)
             if self.assembling() and player.steps_done >= 4 and now >= player.next_countdown:
                 self._send_countdown(player, now)
         for viewer in self.players:
