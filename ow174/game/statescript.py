@@ -268,12 +268,21 @@ def owner_full_frame(cmfd: int, instances: list[Instance], entity_vars: dict[int
 
 
 def soldier_body_roots_probe(cmfd: int) -> BitWriter:
-    """Test 0033 using the corrected raw-state -> owner-bit mapping: raw state 10 is owner bit 5."""
+    """Bisect the crashing first-four-root startup probe.
+
+    All nine descriptors stay present.  Only 0033 and 004B get their candidate startup states;
+    0043, 0251, and the remaining roots stay completely off.  If this crashes, the fault is in
+    0033/004B; if it survives, the fault is in 0043/0251.
+    """
+    enabled = {0x0033, 0x004B}
     instances = [
         Instance(
             index,
             graph,
-            active=({5: None} if graph.index == 0x0033 else {}),
+            active=(
+                {bit: None for bit in SOLDIER_INITIAL_OWNER_BITS[graph.index]}
+                if graph.index in enabled else {}
+            ),
         )
         for index, graph in enumerate(SOLDIER_BODY_GRAPHS, start=1)
     ]
