@@ -288,7 +288,7 @@ def soldier_body_roots_probe(cmfd: int) -> BitWriter:
     # 0, 1, 2, 4, 6.  Bare activation of 3 and 5 crashes.  Keep the safe set and add owner bit 7
     # as the sole new change, continuing the direct map before investigating the failing states'
     # state-specific payload or initialization requirements.
-    health.active = {0: None, 1: None, 2: None, 4: None, 6: None, 7: None, 8: None, 9: None}
+    health.active = {0: None, 1: None, 2: None, 4: None, 6: None, 7: None, 8: None, 10: None}
     return owner_full_frame(cmfd, instances, {})
 
 
