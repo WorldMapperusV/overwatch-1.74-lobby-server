@@ -72,6 +72,38 @@ SOLDIER_004B_INITIAL_CHILDREN = (
     (18, Graph(0x0C7D, 0, 0)),
 )
 
+# Startup reconstruction from the extracted 1.74 graphs: every ordinary STUStatescriptEntry fires
+# when an instance starts; STUStatescriptEntryGameMessage and STU_571CC72E are event/remote entries,
+# not creation entries.  These are OWNER-BIT indices (after client/server-only states are removed),
+# which is what owner_full_frame writes.  This settles the creation-state question that made the old
+# single-0257 probe unsafe.
+SOLDIER_INITIAL_OWNER_BITS = {
+    0x0033: (8, 9, 10),
+    0x004B: (0, 3, 5, 10, 12, 13, 14, 15, 18, 19, 20, 22, 23, 25, 27, 31, 33),
+    0x0043: (6, 15, 21),
+    0x0251: (0, 1),
+    0x0255: (2, 4, 6, 7, 8, 16, 18, 22),
+    0x0257: (7, 11, 12, 13, 18),
+    0x0259: (15,),
+    0x091B: (0,),
+    0x08B6: (0, 1, 4, 7, 9, 10),
+}
+
+SOLDIER_INITIAL_CHILD_OWNER_BITS = {
+    0x01C7: (4, 7, 10, 12, 13, 18, 21, 23, 24, 29, 35, 36, 38, 39, 40),
+    0x01CF: (4, 6, 11, 13, 14, 17, 20, 22, 23, 25),
+    0x02C5: (6,),
+    0x0B8B: (0,),
+    0x0C7D: (),
+}
+
+# Startup actions that must also be represented by server-provided variables because server-created
+# instances do not execute their ordinary Entry actions locally.  Known literal writes include:
+# 0033 entity v32350=0.3; 004B entity v14676=true; 0043 instance v476=30, v215=0.5,
+# v1258=0, v1257=1; 0255 instance v1002=0.5, v636=0.3; 01CF instance v7044=true,
+# v8831=true; 01C7 entity v31296=1.  Other startup actions depend on expressions/conditions and must
+# be evaluated before we emit the first body frame rather than guessed.
+
 class Value:
     tag: int
 
