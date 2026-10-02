@@ -284,11 +284,11 @@ def soldier_body_roots_probe(cmfd: int) -> BitWriter:
     health = next(item for item in instances if item.graph.index == 0x0033)
     health.active = {bit: None for bit in (0, 1, 2, 3, 5, 8)}
 
-    # The supposed coherent 0033 baseline also crashes on a clean retest, so it was never a
-    # reliable control.  Return all nine Soldier roots to the one configuration that was actually
-    # reproduced as safe: descriptors only, every owner state off.  Do not infer state semantics
-    # from any later probe until this baseline is reconfirmed.
-    health.active = {}
+    # Descriptor-only roots are now reconfirmed safe.  Restart state isolation from that clean
+    # control with exactly one change: 0033 owner bit 0.  No other root state, child, or variable is
+    # present, so this result can be attributed to this bit without the contaminated 0033 baseline
+    # used by the earlier 004B probes.
+    health.active = {0: None}
     return owner_full_frame(cmfd, instances, {})
 
 
