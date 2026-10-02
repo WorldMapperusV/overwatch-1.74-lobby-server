@@ -462,6 +462,9 @@ class Match:
             )
             if old is not None:
                 updates.append(EntityUpdate(old, OP_DESTROY))
+            if hero.guid == SOLDIER:
+                cmfd = player.body_script.next_cmfd(self._newest_frame(player))
+                updates.append(player.body_script.full_frame(soldier_body_frame(cmfd)))
             player.client.queue_entities(updates)
         if old is not None:
             self.destroy_for_others(player, old)
