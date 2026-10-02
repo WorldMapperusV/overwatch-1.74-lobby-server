@@ -29,7 +29,7 @@ from ow174.game import heroselect, world
 from ow174.game.commands import Command, CommandQueue
 from ow174.game.content import SOLDIER, GameMap, Hero, heroes, spawn_point
 from ow174.game.mover import FlatMover
-from ow174.game.statescript import Float, Stream, owner_ack, variables_frame
+from ow174.game.statescript import Float, Stream, owner_ack, soldier_body_frame, variables_frame
 from ow174.game.world import (
     OP_CREATE,
     OP_DESTROY,
