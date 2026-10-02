@@ -306,6 +306,11 @@ def soldier_body_roots_probe(cmfd: int) -> BitWriter:
     # with every manager state/variable off, so this test answers whether 0015 can coexist with the
     # proven body-root frame before we attempt 0254 or any UX/ability state.
     instances.append(Instance(10, SOLDIER_WEAPON_MANAGER))
+
+    # 0015's descriptor is now live-proven safe.  Add Soldier's primary weapon graph 0254 as a
+    # second descriptor-only instance.  Keep both graphs' states and variables off: this isolates
+    # whether the primary weapon object itself is accepted before enabling ammo/ability/UX states.
+    instances.append(Instance(11, SOLDIER_PRIMARY_WEAPON))
     return owner_full_frame(cmfd, instances, {})
 
 
