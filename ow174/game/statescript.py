@@ -352,10 +352,9 @@ def soldier_body_roots_probe(cmfd: int) -> BitWriter:
     hud_source = instances[-1]
     hud_source.extra.update({7044: Bool(True), 8831: Bool(True)})
 
-    # v7044/v8831 are accepted but produce no visible HUD change.  The next direct dependency is
-    # 01CF's UX/presenter startup path.  Probe its first reconstructed owner state (bit 1) alone,
-    # retaining the already-proven remote-sync state 40 and Entry variables.
-    hud_source.active[1] = None
+    # v7044/v8831 are accepted but produce no visible HUD change.  Owner bit 1 crashes when
+    # activated bare, so restore the proven 01CF remote-sync baseline.  Do not continue scanning
+    # presenter bits without reconstructing their class-specific payload/lifecycle requirements.
     return owner_full_frame(cmfd, instances, {})
 
 
