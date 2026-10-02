@@ -284,12 +284,11 @@ def soldier_body_roots_probe(cmfd: int) -> BitWriter:
     health = next(item for item in instances if item.graph.index == 0x0033)
     health.active = {bit: None for bit in (0, 1, 2, 3, 5, 8)}
 
-    # 004B owner bit 12 also crashes by itself, so the old candidate startup mapping for 004B
-    # is not trustworthy.  Start walking 004B's serialized state vector from bit zero with no child
-    # descriptor/payload.  This intentionally asks only whether bit 1 is a payload-free state; bit 0
-    # is known to be the child-bearing SubScript path and is therefore skipped in this probe.
+    # 004B owner bit 1 crashes as a standalone payload-free state too.  Continue the direct
+    # serialized-state walk rather than trusting the reconstructed startup tuple.  Keep the proven
+    # 0033 baseline unchanged and test only 004B owner bit 2, with no child descriptor or payload.
     parent = next(item for item in instances if item.graph.index == 0x004B)
-    parent.active[1] = None
+    parent.active[2] = None
     return owner_full_frame(cmfd, instances, {})
 
 
