@@ -272,12 +272,12 @@ def owner_full_frame(cmfd: int, instances: list[Instance], entity_vars: dict[int
 
 
 def soldier_body_roots_probe(cmfd: int) -> BitWriter:
-    """0033 startup-state bisection: bit 8 safe, bit 9 crashes; test bit 10 alone."""
+    """0033: bit 8 is proven safe; bits 9 and 10 crash alone. Keep only the validated state."""
     instances = [
         Instance(
             index,
             graph,
-            active=({10: None} if graph.index == 0x0033 else {}),
+            active=({8: None} if graph.index == 0x0033 else {}),
         )
         for index, graph in enumerate(SOLDIER_BODY_GRAPHS, start=1)
     ]
