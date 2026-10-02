@@ -327,18 +327,10 @@ def soldier_body_frame(cmfd: int) -> BitWriter:
     )
     instances += [manager, weapon]
 
-    # Literal server Entry writes.  Send them by variable id rather than guessing compact presence
-    # slots; the full-frame variable list accepts instance variables by id.
-    by_graph = {item.graph.index: item for item in instances}
-    by_graph[0x0043].extra.update({476: Int(30), 215: Float(.5), 1258: Int(0), 1257: Int(1)})
-    by_graph[0x0255].extra.update({1002: Float(.5), 636: Float(.3)})
-    by_graph[0x01CF].extra.update({7044: Bool(True), 8831: Bool(True)})
-    weapon.extra.update({
-        476: Int(20), 581: Float(1.5), 6884: Float(.511), 6885: Float(.1),
-        229: Int(0), 230: Int(0), 1769: Int(100), 1770: Int(100),
-    })
-    entity_vars = {32350: Float(.3), 14676: Bool(True), 31296: Int(1)}
-    return owner_full_frame(cmfd, instances, entity_vars)
+    # First runtime probe: topology and state payloads only.  The arbitrary-id variable list below
+    # is intentionally deferred until the frame itself is accepted; unlike the compact sync presence
+    # table, its exact owner-frame semantics have not yet been proven in the client reader.
+    return owner_full_frame(cmfd, instances, {})
 
 
 def variables_frame(entity_vars: dict[int, Value]) -> BitWriter:
