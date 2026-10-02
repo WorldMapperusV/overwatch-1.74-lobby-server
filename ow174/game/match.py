@@ -127,6 +127,8 @@ class Player:
         # Entity records process StateScript channel 1 before component channel 4, so sending both in
         # the pick frame can evaluate hero graph state before body creation/possession has settled.
         self.body_script_pending = False
+        # Fire 0CBB's 0717 HUD message as a later off->on transition, not in its creation snapshot.
+        self.mode_hud_event_pending = False
 
     @property
     def team_bit(self) -> int:
@@ -340,6 +342,13 @@ class Match:
                 )
                 player.body_script_pending = False
                 log.info("[game] %s: %s's body statescript sent after possession", self.label(), player.name)
+            if player.mode_hud_event_pending and not client.entities:
+                cmfd = player.mode_script.next_cmfd(self._newest_frame(player))
+                client.queue_entities(
+                    [player.mode_script.full_frame(practice_mode_root_frame(cmfd, fire_hud_event=True))]
+                )
+                player.mode_hud_event_pending = False
+                log.info("[game] %s: %s's Practice HUD event transitioned on", self.label(), player.name)
             if player.body_script.data_last and now >= player.body_script.next_ack:
                 self._owner_ack(player, player.body_script, now)
             if self.assembling() and player.steps_done >= 4 and now >= player.next_countdown:
@@ -376,6 +385,7 @@ class Match:
                 client.queue_entities(
                     [player.mode_script.full_frame(practice_mode_root_frame(cmfd))]
                 )
+                player.mode_hud_event_pending = True
             self.send_controller(player)
 
     # --- assembling heroes ---------------------------------------------------------------------
