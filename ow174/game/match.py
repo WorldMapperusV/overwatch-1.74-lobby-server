@@ -29,7 +29,15 @@ from ow174.game import heroselect, world
 from ow174.game.commands import Command, CommandQueue
 from ow174.game.content import SOLDIER, GameMap, Hero, heroes, spawn_point
 from ow174.game.mover import FlatMover
-from ow174.game.statescript import Float, Stream, owner_ack, soldier_body_frame, soldier_body_roots_probe, variables_frame
+from ow174.game.statescript import (
+    Float,
+    Stream,
+    owner_ack,
+    practice_mode_root_frame,
+    soldier_body_frame,
+    soldier_body_roots_probe,
+    variables_frame,
+)
 from ow174.game.world import (
     OP_CREATE,
     OP_DESTROY,
@@ -361,6 +369,13 @@ class Match:
                 log.info("[game] %s: assemble your team, %d s", self.label(), ASSEMBLE_SECONDS)
         if player.steps_done == 3 and waited >= SEND_CONTROLLER:
             player.steps_done = 4
+            # Practice's 13C0 game-mode root owns the 0CBB event graph that emits 0717.025.
+            # 20E4 waits for that event before starting its client-only HUD presenter lifecycle.
+            if self.controller is heroselect.PRACTICE:
+                cmfd = player.mode_script.next_cmfd(self._newest_frame(player))
+                client.queue_entities(
+                    [player.mode_script.full_frame(practice_mode_root_frame(cmfd))]
+                )
             self.send_controller(player)
 
     # --- assembling heroes ---------------------------------------------------------------------
