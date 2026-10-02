@@ -231,7 +231,7 @@ def _variables(out: BitWriter, variables: dict[int, Value]) -> None:
     out.w_var(0)
 
 
-def owner_full_frame(cmfd: int, instances: list[Instance], entity_vars: dict[int, Value]) -> BitWriter:
+def owner_full_frame(cmfd: int, instances: list[Instance], entity_vars: dict[int, Value], *, state_controls: bool = False) -> BitWriter:
     """An owner (H=1) full frame. `cmfd` must be larger than any CmFD sent to this entity before."""
     if cmfd < 1:
         raise ValueError("CmFD 0 is always stale")
@@ -262,12 +262,25 @@ def owner_full_frame(cmfd: int, instances: list[Instance], entity_vars: dict[int
             _variables(out, instance.extra)
         else:
             out.bit(0)
+        # A0C620 first bulk-reads the complete owner-state presence vector (D530E0), then
+        # iterates its set bits. Per-active-state control/data follows the whole vector.
+        active_bits = []
         for bit in range(instance.graph.owner_states):
             on = bit in instance.active
             out.bit(on)
-            payload = instance.active.get(bit)
-            if on and payload is not None:
-                out.append(payload)
+            if on:
+                active_bits.append(bit)
+        if state_controls:
+            for bit in active_bits:
+                out.bit(1)  # ordinary A0C8A5 path: create/apply this active state
+                payload = instance.active.get(bit)
+                if payload is not None:
+                    out.append(payload)
+        else:
+            for bit in active_bits:
+                payload = instance.active.get(bit)
+                if payload is not None:
+                    out.append(payload)
         out.bits(0b11, 2)  # the instance's event list ends (code 3)
     out.bits(0, 2)  # the frame's event lists: none
     return out
@@ -356,7 +369,11 @@ def soldier_body_roots_probe(cmfd: int, body_entity: int) -> BitWriter:
     # still crashes.  Restore the only live-proven HUD path: 004B -> 01CF with remote-sync bit 40
     # and the harmless Entry literals v7044/v8831.  Nested Stack/BooleanSwitch/UXPresenter states
     # need class-specific network payload/lifecycle handling before they can be serialized safely.
-    return owner_full_frame(cmfd, instances, {})
+    # A0C620 proves the client bulk-reads the entire state vector and only then consumes
+    # per-active-state control bits. Retry the previously crashing 0033 BooleanSwitch bit 3 with
+    # that corrected framing, on top of the proven HUD baseline.
+    health.active[3] = None
+    return owner_full_frame(cmfd, instances, {}, state_controls=True)
 
 
 def soldier_body_frame(cmfd: int) -> BitWriter:
