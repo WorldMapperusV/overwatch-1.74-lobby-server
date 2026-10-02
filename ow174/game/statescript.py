@@ -40,6 +40,12 @@ class Graph:
 CONTROLLER = Graph(0x13C1, 43, 12)  # the player's controller in the Practice Range mode
 PVP_CONTROLLER = Graph(0x0C90, 118, 29)  # the controller of both teams in the PvP modes
 HUD = Graph(0x20E4, 1, 0)  # 13C1's weapon and ability HUD (0C90 starts its own)
+
+# Practice also has a game-mode root, 13C0, on the game-mode entity.  One of its ordinary Entry
+# nodes starts raw state 5 -> 0CBB.  0CBB raw state 42 is the 0717.025 sender that wakes 20E4's
+# client-only possession/HUD presenter path.
+PRACTICE_MODE_ROOT = Graph(0x13C0, 20, 3)
+PRACTICE_MODE_EVENTS = Graph(0x0CBB, 69, 13)
 HERO_SELECT_HOST = Graph(0x288A, 6, 0)
 HERO_SELECT = Graph(0x288B, 30, 4)  # presents the hero select screen 008C.05A
 TEAM_ENTRY = Graph(0x288D, 0, 0)  # client-only: posts its entity to the local player's team list
@@ -470,6 +476,24 @@ def soldier_body_frame(cmfd: int) -> BitWriter:
     # is intentionally deferred until the frame itself is accepted; unlike the compact sync presence
     # table, its exact owner-frame semantics have not yet been proven in the client reader.
     return owner_full_frame(cmfd, instances, {})
+
+
+def practice_mode_root_frame(cmfd: int) -> BitWriter:
+    """Minimal Practice game-mode startup needed by the HUD lifecycle.
+
+    13C0's ordinary Entry starts raw state 5 (a SubScript to 0CBB).  Network-created instances do
+    not execute ordinary Entries, so reconstruct that link explicitly.  0CBB raw state 42 is a
+    STU_38EE1100 game-message state for 0717.025; 20E4 listens for that message before resolving
+    its local HUD entity/context and starting the main presenter.
+    """
+    root = Instance(1, PRACTICE_MODE_ROOT, active={5: subscript(2)})
+    events = Instance(
+        2,
+        PRACTICE_MODE_EVENTS,
+        parent=(1, 5),
+        active={42: None},
+    )
+    return owner_full_frame(cmfd, [root, events], {})
 
 
 def variables_frame(entity_vars: dict[int, Value]) -> BitWriter:
