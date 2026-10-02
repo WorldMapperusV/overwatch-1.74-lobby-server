@@ -284,13 +284,11 @@ def soldier_body_roots_probe(cmfd: int) -> BitWriter:
     health = next(item for item in instances if item.graph.index == 0x0033)
     health.active = {bit: None for bit in (0, 1, 2, 3, 5, 8)}
 
-    # 004B owner bits 1, 2, and 3 all crash when treated as payload-free active states.
-    # Stop walking adjacent bits one at a time and test the more fundamental hypothesis: whether
-    # *any* active 004B state is accepted by the current per-instance serializer.  Bit 38 is the
-    # opposite end of 004B's 39-bit owner vector and is not in the reconstructed startup tuple.
-    # If this also crashes, investigate 004B's state-record framing/metadata before further probes.
-    parent = next(item for item in instances if item.graph.index == 0x004B)
-    parent.active[38] = None
+    # Active 004B bits 1, 2, 3, 12, and 38 all crash under the current serializer.  Before
+    # attributing that to 004B-specific state payloads, re-run the exact proven root-only baseline:
+    # nine descriptors plus the coherent 0033 set, with every 004B state off.  This guards against
+    # a regression elsewhere in the frame path and gives the next reader/disassembly work a clean
+    # control sample rather than continuing low-information state-bit probes.
     return owner_full_frame(cmfd, instances, {})
 
 
