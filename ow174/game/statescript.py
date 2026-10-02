@@ -345,6 +345,12 @@ def soldier_body_roots_probe(cmfd: int) -> BitWriter:
             active={40: None},
         )
     )
+
+    # Live result: connecting 01CF's remote-sync state removes 20E4's red "Unavailable" ultimate
+    # marker.  That proves this is the real HUD feed.  01CF Entry initializes v7044/v8831=true;
+    # reproduce those two literal instance values next while leaving all other 01CF states off.
+    hud_source = instances[-1]
+    hud_source.extra.update({7044: Bool(True), 8831: Bool(True)})
     return owner_full_frame(cmfd, instances, {})
 
 
