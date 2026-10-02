@@ -372,8 +372,7 @@ def soldier_body_roots_probe(cmfd: int, body_entity: int) -> BitWriter:
     # A0C620 proves the client bulk-reads the entire state vector and only then consumes
     # per-active-state control bits. Retry the previously crashing 0033 BooleanSwitch bit 3 with
     # that corrected framing, on top of the proven HUD baseline.
-    health.active[3] = None
-    return owner_full_frame(cmfd, instances, {}, state_controls=True)
+    return owner_full_frame(cmfd, instances, {})
 
 
 def soldier_body_frame(cmfd: int) -> BitWriter:
