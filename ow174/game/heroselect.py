@@ -82,10 +82,11 @@ def controller_frame(
     active = {controller.hero_select_bit: None, controller.select_bit: subscript(2)}
     host = Instance(2, HERO_SELECT_HOST, parent=(1, controller.select_state), active={0: subscript(3)})
     screen = Instance(3, HERO_SELECT, parent=(2, 0))
-    # 288B raw state 132 compacts to owner bit 20. It is the synchronized Stack that drives
-    # the selector's scoped v2438 false during the normal close transition.
+    # 288B raw state 99 compacts to owner bit 14. It is the synchronized Stack beneath
+    # GameMessageEntry raw 100 for 0832.025 and drives the selector's scoped v2438 false.
+    # This is distinct from raw 132/owner 20, which belongs to a v2114 BooleanSwitch branch.
     if not select_open:
-        screen.active[20] = None
+        screen.active[14] = None
     instances = [
         Instance(1, controller.graph, presence={controller.allow_bit: Bool(True)}, active=active),
         host,
