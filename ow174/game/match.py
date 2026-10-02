@@ -115,6 +115,10 @@ class Player:
         self.mode_script = Stream(GAME_MODE_ENTITY)  # the game mode entity's variables: the countdown
         self.next_countdown = 0.0
         self.select_open = True
+        # A newly possessed body must exist for a frame before its first authoritative StateScript.
+        # Entity records process StateScript channel 1 before component channel 4, so sending both in
+        # the pick frame can evaluate hero graph state before body creation/possession has settled.
+        self.body_script_pending = False
 
     @property
     def team_bit(self) -> int:
@@ -321,6 +325,13 @@ class Match:
                 self._spawn_steps(player, client, now)
             if player.script.data_last and now >= player.script.next_ack:
                 self._owner_ack(player, player.script, now)
+            if player.body_script_pending and not client.entities:
+                cmfd = player.body_script.next_cmfd(self._newest_frame(player))
+                client.queue_entities(
+                    [player.body_script.full_frame(soldier_body_roots_probe(cmfd, player.body))]
+                )
+                player.body_script_pending = False
+                log.info("[game] %s: %s's body statescript sent after possession", self.label(), player.name)
             if player.body_script.data_last and now >= player.body_script.next_ack:
                 self._owner_ack(player, player.body_script, now)
             if self.assembling() and player.steps_done >= 4 and now >= player.next_countdown:
@@ -463,8 +474,10 @@ class Match:
             if old is not None:
                 updates.append(EntityUpdate(old, OP_DESTROY))
             if hero.guid == SOLDIER:
-                cmfd = player.body_script.next_cmfd(self._newest_frame(player))
-                updates.append(player.body_script.full_frame(soldier_body_roots_probe(cmfd, player.body)))
+                # Defer the first body StateScript until a later game frame.  The pick frame creates
+                # and possesses the body first; local graph lifecycle then gets a frame boundary to
+                # initialize before we replace network-owned state authoritatively.
+                player.body_script_pending = True
             player.client.queue_entities(updates)
         if old is not None:
             self.destroy_for_others(player, old)
