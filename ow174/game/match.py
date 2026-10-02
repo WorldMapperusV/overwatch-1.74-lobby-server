@@ -418,7 +418,13 @@ class Match:
         cmfd = player.script.next_cmfd(self._newest_frame(player))
         practice = self.controller is heroselect.PRACTICE
         skins = player.select_open and (practice or self.assembling())
-        frame = heroselect.controller_frame(self.controller, cmfd, player.select_open, skins, practice)
+        # Practice's 20E4 HUD graph resolves possession/context from client-only creation Entry
+        # states.  Do not create it on the pre-pick controller frame, when there is no possessed
+        # body yet; attach it for the first time in the controller frame sent after switch_hero().
+        include_hud = not practice or player.has_body
+        frame = heroselect.controller_frame(
+            self.controller, cmfd, player.select_open, skins, practice, include_hud
+        )
         player.client.queue_entities([player.script.full_frame(frame)])
         state = "open" if player.select_open else "closed"
         log.info("[game] %s: %s's controller sent (hero select %s)", self.label(), player.name, state)
