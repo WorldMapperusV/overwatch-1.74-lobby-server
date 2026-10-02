@@ -272,17 +272,20 @@ def owner_full_frame(cmfd: int, instances: list[Instance], entity_vars: dict[int
 
 
 def soldier_body_roots_probe(cmfd: int) -> BitWriter:
-    """Structural probe: Soldier's nine definition roots with their reconstructed startup states.
+    """Bisect root startup states.
 
-    The preceding descriptor-only probe was accepted, proving the root descriptors/counts and full
-    frame framing.  This isolates the next layer: owner-state bit reconstruction, without children,
-    SubScript payloads, weapon graphs or variables.
+    Descriptor-only roots are proven safe.  The all-roots startup-state probe crashes.  Enable the
+    first half of the roots here; the other five remain present but with every owner state off.
     """
+    enabled = {0x0033, 0x004B, 0x0043, 0x0251}
     instances = [
         Instance(
             index,
             graph,
-            active={bit: None for bit in SOLDIER_INITIAL_OWNER_BITS[graph.index]},
+            active=(
+                {bit: None for bit in SOLDIER_INITIAL_OWNER_BITS[graph.index]}
+                if graph.index in enabled else {}
+            ),
         )
         for index, graph in enumerate(SOLDIER_BODY_GRAPHS, start=1)
     ]
