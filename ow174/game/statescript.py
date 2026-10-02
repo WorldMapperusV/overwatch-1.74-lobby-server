@@ -328,15 +328,20 @@ def soldier_body_roots_probe(cmfd: int, body_entity: int) -> BitWriter:
     # 0254's ordinary Entry reaches its initialization chain separately from its initial Stack.
     # Reproduce only the literal instance writes first, with every 0254 state still off.  This
     # isolates the arbitrary-id variable serialization before retrying BooleanSwitch/Ability states.
+    # The compact 0254 variable table is the ordered subset of sync_vars whose first metadata
+    # flag is zero.  These Entry-written values therefore have real owner-frame presence slots;
+    # only 6884/6885 fall outside that compact table and belong in the arbitrary-id tail.
+    weapon.presence.update({
+        12: Float(1.5),   # v581
+        15: Float(20.0),  # v476
+        17: Int(0),       # v229
+        18: Float(0.0),   # v230
+        20: Int(100),     # v1769
+        21: Int(100),     # v1770
+    })
     weapon.extra.update({
-        476: Float(20.0),
-        581: Float(1.5),
         6884: Float(0.511),
         6885: Float(0.1),
-        229: Int(0),
-        230: Float(0.0),
-        1769: Int(100),
-        1770: Int(100),
     })
 
     # HUD dependency found in the extracted graphs: 20E4's sole owner state is the remote-sync
@@ -382,7 +387,12 @@ def soldier_body_roots_probe(cmfd: int, body_entity: int) -> BitWriter:
     # marker.  That proves this is the real HUD feed.  01CF Entry initializes v7044/v8831=true;
     # reproduce those two literal instance values next while leaving all other 01CF states off.
     hud_source = next(item for item in instances if item.graph.index == 0x01CF)
-    hud_source.extra.update({7044: Bool(True), 8831: Bool(True)})
+    # 01CF's compact 22-slot table places v8831 at slot 12 and v7044 at slot 13.  Sending these
+    # through extra() bypassed the descriptor-specific presence path used by the retail reader.
+    hud_source.presence.update({
+        12: Bool(True),  # v8831
+        13: Bool(True),  # v7044
+    })
 
     # 0259 raw state 45 / owner bit 43 exports v1030 and v17858 into the same 01CF HUD
     # bundle.  This completes every reachable upstream remote-sync producer of that bundle.
