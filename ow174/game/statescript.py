@@ -284,11 +284,12 @@ def soldier_body_roots_probe(cmfd: int) -> BitWriter:
     health = next(item for item in instances if item.graph.index == 0x0033)
     health.active = {bit: None for bit in (0, 1, 2, 3, 5, 8)}
 
-    # The attached 01C7 descriptor crashed even with 004B state 0 off.  Split the descriptor
-    # itself now: create the same graph as an unattached root.  If this survives, graph 01C7 is
-    # accepted and the remaining fault is specifically the parent descriptor encoding/semantics.
-    child_id = 10
-    instances.append(Instance(child_id, SOLDIER_CHILD_GRAPHS[0x01C7]))
+    # 01C7 also crashes when introduced as an unattached network instance, so do not treat a
+    # SubScript graph as an independently creatable root.  Return to the proven root-only baseline
+    # and advance to 004B's next non-child state.  This keeps the child-instance question separate
+    # from validating the root graph's ordinary startup states.
+    parent = next(item for item in instances if item.graph.index == 0x004B)
+    parent.active[12] = None
     return owner_full_frame(cmfd, instances, {})
 
 
