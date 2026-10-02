@@ -268,26 +268,20 @@ def owner_full_frame(cmfd: int, instances: list[Instance], entity_vars: dict[int
 
 
 def soldier_body_roots_probe(cmfd: int) -> BitWriter:
-    """Bisect the crashing first-four-root startup probe.
+    """Probe 0033 owner bit 0 with every other root state off.
 
-    All nine descriptors stay present.  Only 0033 gets its corrected candidate startup state;
-    004B and every other root stay completely off.  If this survives, 004B is isolated as the
-    crashing half of the previous 0033+004B probe.
+    Descriptor-only roots are proven safe, while 0033 owner bit 5 crashes.  Do not trust the
+    reconstructed startup mapping yet: walk the 12 serialized owner bits directly.
     """
-    enabled = {0x0033}
     instances = [
         Instance(
             index,
             graph,
-            active=(
-                {bit: None for bit in SOLDIER_INITIAL_OWNER_BITS[graph.index]}
-                if graph.index in enabled else {}
-            ),
+            active=({0: None} if graph.index == 0x0033 else {}),
         )
         for index, graph in enumerate(SOLDIER_BODY_GRAPHS, start=1)
     ]
     return owner_full_frame(cmfd, instances, {})
-
 
 
 def soldier_body_frame(cmfd: int) -> BitWriter:
