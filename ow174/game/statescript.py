@@ -329,10 +329,22 @@ def soldier_body_roots_probe(cmfd: int) -> BitWriter:
         1769: Int(100),
         1770: Int(100),
     })
-    # The literal 0254 Entry writes are live-proven safe, but owner bit 31 (Ability) still crashes
-    # with them present.  Restore that initialized, state-off configuration as the HUD control.
-    # The Ability state therefore needs additional lifecycle/state payload context; do not probe it
-    # bare again.
+
+    # HUD dependency found in the extracted graphs: 20E4's sole owner state is the remote-sync
+    # state for v17906/v18405.  Soldier's 01CF child contains the matching source-side remote-sync
+    # state at raw state 140 / owner bit 40.  Attach only that real 004B -> 01CF SubScript and turn
+    # on its remote-sync state; do not enable 01CF's speculative startup states yet.
+    body = next(item for item in instances if item.graph.index == 0x004B)
+    child_id = 12
+    body.active[3] = subscript(child_id)
+    instances.append(
+        Instance(
+            child_id,
+            SOLDIER_CHILD_GRAPHS[0x01CF],
+            parent=(body.index, 3),
+            active={40: None},
+        )
+    )
     return owner_full_frame(cmfd, instances, {})
 
 
