@@ -284,10 +284,10 @@ def soldier_body_roots_probe(cmfd: int) -> BitWriter:
     health = next(item for item in instances if item.graph.index == 0x0033)
     health.active = {bit: None for bit in (0, 1, 2, 3, 5, 8)}
 
-    # Clean A/B testing now proves 0033 owner bits 0, 1, and 2 are accepted together.  Keep
-    # those known-safe states and add owner bit 3 as the only new change.  All other root states,
-    # children, and variables remain absent so this result isolates bit 3.
-    health.active = {0: None, 1: None, 2: None, 3: None}
+    # Clean A/B testing proves 0033 owner bits 0, 1, and 2 are accepted together, while adding
+    # bit 3 crashes.  Keep the confirmed-safe 0..2 set, skip bit 3, and test bit 4 as the only new
+    # change.  This distinguishes a bit-3-specific requirement from a general "later states" issue.
+    health.active = {0: None, 1: None, 2: None, 4: None}
     return owner_full_frame(cmfd, instances, {})
 
 
