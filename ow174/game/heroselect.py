@@ -74,14 +74,18 @@ def controller_frame(
     288B (3) under it, 13C1's HUD 20E4 (4), and 288A's team list entry 288D (the next index).
     `skins` turns on v25377, which shows the skin selector; `hide_assemble` hides the assemble title
     and timer that come with it."""
-    active = {controller.hero_select_bit: None, controller.select_bit: subscript(2)}
-    host = Instance(2, HERO_SELECT_HOST, parent=(1, controller.select_state), active={0: subscript(3)})
-    screen = Instance(3, HERO_SELECT, parent=(2, 0))
-    instances = [
-        Instance(1, controller.graph, presence={controller.allow_bit: Bool(True)}, active=active),
-        host,
-        screen,
-    ]
+    # Once Practice has a body, closing hero select should tear down the selector subtree instead of
+    # authoritatively reasserting 288A/288B/288D while possession and the body graphs are starting.
+    # Keep the controller/HUD instance ids stable across the close frame.
+    include_select = select_open or controller is not PRACTICE
+    active = {controller.hero_select_bit: None}
+    instances = [Instance(1, controller.graph, presence={controller.allow_bit: Bool(True)}, active=active)]
+    host = screen = None
+    if include_select:
+        active[controller.select_bit] = subscript(2)
+        host = Instance(2, HERO_SELECT_HOST, parent=(1, controller.select_state), active={0: subscript(3)})
+        screen = Instance(3, HERO_SELECT, parent=(2, 0))
+        instances += [host, screen]
     if controller.hud_bit is not None:
         active[controller.hud_bit] = subscript(4)
         # 20E4's client-only Entry gates its possession/HUD initialization branch on v23604,
@@ -97,13 +101,14 @@ def controller_frame(
                 extra={23604: Bool(True)},
             )
         )
-    entry = len(instances) + 1
-    host.active[1] = subscript(entry)
-    instances.append(Instance(entry, TEAM_ENTRY, parent=(2, 1)))
-    if skins:
-        screen.presence[ASSEMBLING] = Bool(True)
-    if hide_assemble:
-        screen.extra[HIDE_ASSEMBLE] = Bool(True)
+    if include_select:
+        entry = len(instances) + 1
+        host.active[1] = subscript(entry)
+        instances.append(Instance(entry, TEAM_ENTRY, parent=(2, 1)))
+        if skins:
+            screen.presence[ASSEMBLING] = Bool(True)
+        if hide_assemble:
+            screen.extra[HIDE_ASSEMBLE] = Bool(True)
     variables = {OPEN_SELECT: Bool(select_open), SELECT_SHOWN: Bool(select_open)}
     return owner_full_frame(cmfd, instances, variables)
 
