@@ -270,11 +270,11 @@ def owner_full_frame(cmfd: int, instances: list[Instance], entity_vars: dict[int
 def soldier_body_roots_probe(cmfd: int) -> BitWriter:
     """Bisect the crashing first-four-root startup probe.
 
-    All nine descriptors stay present.  Only 0033 and 004B get their candidate startup states;
-    0043, 0251, and the remaining roots stay completely off.  If this crashes, the fault is in
-    0033/004B; if it survives, the fault is in 0043/0251.
+    All nine descriptors stay present.  Only 0033 gets its corrected candidate startup state;
+    004B and every other root stay completely off.  If this survives, 004B is isolated as the
+    crashing half of the previous 0033+004B probe.
     """
-    enabled = {0x0033, 0x004B}
+    enabled = {0x0033}
     instances = [
         Instance(
             index,
