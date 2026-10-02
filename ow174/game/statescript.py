@@ -481,17 +481,20 @@ def soldier_body_frame(cmfd: int) -> BitWriter:
 def practice_mode_root_frame(cmfd: int) -> BitWriter:
     """Minimal Practice game-mode startup needed by the HUD lifecycle.
 
-    13C0's ordinary Entry starts raw state 5 (a SubScript to 0CBB).  Network-created instances do
-    not execute ordinary Entries, so reconstruct that link explicitly.  0CBB raw state 42 is a
+    13C0's ordinary Entry starts raw state 5 (a SubScript to 0CBB), but raw state 5 is omitted from
+    the owner-state vector and therefore cannot be asserted on the wire.  Instantiate 0CBB as the
+    companion graph instead.  0CBB raw state 42 / owner bit 34 is a
     STU_38EE1100 game-message state for 0717.025; 20E4 listens for that message before resolving
     its local HUD entity/context and starting the main presenter.
     """
-    root = Instance(1, PRACTICE_MODE_ROOT, active={5: subscript(2)})
+    # Raw 13C0 state 5 is an Entry-driven SubScript but is absent from the owner-state vector,
+    # so it has no network bit we can assert.  Keep 13C0 present and instantiate its 0CBB companion
+    # directly.  In 0CBB, raw state 42 is compact owner bit 34 and is the synchronized 0717 sender.
+    root = Instance(1, PRACTICE_MODE_ROOT)
     events = Instance(
         2,
         PRACTICE_MODE_EVENTS,
-        parent=(1, 5),
-        active={42: None},
+        active={34: None},
     )
     return owner_full_frame(cmfd, [root, events], {})
 
