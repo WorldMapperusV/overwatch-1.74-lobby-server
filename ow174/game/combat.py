@@ -751,7 +751,7 @@ class Combat:
         notice = {
             "+0x78": killer.account_lo,
             "+0x80": {"+0x0": killer.body},
-            "+0x84": {"+0x0": victim},
+            # Diagnostic: the 1.74 handler rejects 0x1fffffff before constructing 0F76.025.\n            # This keeps 25005 on the wire while isolating its downstream game-message dispatch.\n            "+0x84": {"+0x0": 0x1FFFFFFF if killer.hero.guid == CASSIDY else victim},
             "+0x88": 0,
             "+0x89": False,
         }
