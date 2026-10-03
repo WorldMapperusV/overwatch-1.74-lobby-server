@@ -271,18 +271,20 @@ class BodyScript:
                 [(index, state.node.cls) for index, state in deadeye.states.items() if state.active]
                 if deadeye is not None else []
             )
-            target_states = (
-                [
-                    {
-                        "state": index,
-                        "active": state.active,
-                        "targets": state.payload().get("targets", ()) if state.active else (),
-                    }
-                    for index, state in deadeye.states.items()
-                    if isinstance(state, nodes.TrackTargets)
-                ]
-                if deadeye is not None else []
-            )
+            target_states = []
+            if deadeye is not None:
+                for index, node in enumerate(deadeye.graph.states):
+                    if node is None or node.cls != "STUStatescriptStateTrackTargets":
+                        continue
+                    state = deadeye.state(index)
+                    target_states.append(
+                        {
+                            "state": index,
+                            "instantiated": index in deadeye.states,
+                            "active": bool(state and state.active),
+                            "targets": state.payload().get("targets", ()) if state and state.active else (),
+                        }
+                    )
             log.info(
                 "Cassidy ult frame=%d charge=%s cost=%s held=%s ult=%s deadeye_active=%s "
                 "tracked=%s target_states=%s",
