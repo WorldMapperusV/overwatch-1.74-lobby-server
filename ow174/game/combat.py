@@ -758,7 +758,7 @@ class Combat:
         # Diagnostic: Cassidy's client-only Deadeye HUD stops updating exactly when a bot dies.
         # Suppress only the elimination notice for Cassidy to distinguish 25005 from the final 25001
         # hit record; the latter still carries the KILLING flag and normal hit/kill feedback.
-        if killer.hero == CASSIDY:
+        if killer.hero.guid == CASSIDY:
             log.info("[game] %s: suppressing Cassidy kill notice diagnostic", self.match.label())
             return
         killer.client.queue_reliable(KILL_NOTICE, notice)
