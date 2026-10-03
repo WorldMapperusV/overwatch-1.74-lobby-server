@@ -722,19 +722,7 @@ class Combat:
                 target.owner.died(self.tick)
                 self.respawns.append((self.now + BOT_RESPAWN, target.owner))
                 shooter.stats.add(stats.ELIMINATIONS)
-                # Diagnostic: 25005 normally receives the killed bot body here. Cassidy's client-only
-                # Deadeye presenter freezes on that notice, and bot bodies carry no player/name metadata.
-                # Point the same notice at the shooter's known player body to isolate whether the bot
-                # entity reference, rather than 25005 itself, is what corrupts the client-side state.
-                notice_victim = shooter.body if shooter.hero.guid == CASSIDY else target.entity
-                if shooter.hero.guid == CASSIDY:
-                    log.info(
-                        "[game] %s: Cassidy bot-kill notice diagnostic victim %08X -> player body %08X",
-                        self.match.label(),
-                        target.entity,
-                        notice_victim,
-                    )
-                self._kill_notice(shooter, notice_victim)
+                self._kill_notice(shooter, target.entity)
                 log.info("[game] %s: %s killed %s", self.match.label(), shooter.name, target.owner.name)
             return
         victim = target.owner
