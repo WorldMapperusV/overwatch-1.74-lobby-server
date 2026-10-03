@@ -730,10 +730,6 @@ class Match:
                 log.info("[game] %s: assemble your team, %d s", self.label(), ASSEMBLE_SECONDS)
         if player.steps_done == 3 and waited >= SEND_CONTROLLER:
             player.steps_done = 4
-            # The game-mode entity's component 114 identifies the mode, but its client UI graph 0CB6
-            # contains networked states too. Give it the authoritative StateScript instance before
-            # messages such as 0F76.025 (25005 elimination notice) can enter its 1FC0 child.
-            client.queue_entities([player.mode_script.full_frame(combat.mode_frame({}))])
             self.send_controller(player)
             self.combat.spawned(player)
 
