@@ -285,11 +285,26 @@ class BodyScript:
                             "targets": state.payload().get("targets", ()) if state and state.active else (),
                         }
                     )
+            wait2 = None
+            if deadeye is not None:
+                state = deadeye.state(2)
+                if state is not None:
+                    wait2 = {
+                        "active": state.active,
+                        "start": state.start,
+                        "now": self.component.now,
+                        "ms": getattr(state, "ms", None),
+                        "queue": [
+                            (event.time, event.kind, event.op, event.param)
+                            for event in deadeye.queue
+                            if event.state is state
+                        ],
+                    }
             log.info(
                 "Cassidy ult frame=%d charge=%s cost=%s held=%s ult=%s deadeye_active=%s "
-                "tracked=%s target_states=%s",
+                "tracked=%s target_states=%s wait2=%s",
                 frame, charge, cost, self.component.held, ult, active,
-                self.world.tracked_targets, target_states,
+                self.world.tracked_targets, target_states, wait2,
             )
 
     def _report_shots(self) -> None:
