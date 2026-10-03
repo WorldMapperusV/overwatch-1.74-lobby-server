@@ -24,7 +24,7 @@ from dataclasses import dataclass, field
 
 from ow174.game import pools
 from ow174.game.bits import BitWriter
-from ow174.game.content import SOLDIER
+from ow174.game.content import CASSIDY, SOLDIER
 from ow174.game.script import expr, graph, nodes, runtime
 from ow174.game.script.expr import INSTANCE, Asset, Entity, Vec3, f32
 from ow174.game.statescript import (
@@ -244,6 +244,29 @@ class BodyScript:
         self.component.run_frame(frame, edges)
         self._report_shots()
         self._charge_ult()
+        if self.hero == CASSIDY and frame % 60 == 0:
+            weapon = next(
+                (item for item in self.component.instances.values() if item.graph.index == 0x01D2), None
+            )
+            if weapon is not None:
+                active = [
+                    (index, state.node.cls)
+                    for index, state in weapon.states.items()
+                    if state.active
+                ]
+                values = {
+                    var: (weapon.vars[var].value() if var in weapon.vars else None)
+                    for var in (28, 53, 231, 581, 6884, 6773, 10268)
+                }
+                disabled = {
+                    button: [(state.instance.graph.index, state.index) for state in states if state.active]
+                    for button, states in self.component.disabled.items()
+                    if any(state.active for state in states)
+                }
+                log.info(
+                    "Cassidy frame=%d held=%s disabled=%s weapon_active=%s weapon_vars=%s",
+                    frame, self.component.held, disabled, active, values,
+                )
 
     def _report_shots(self) -> None:
         """The shots the active volleys fired up to the end of the frame go on the component's shot list
