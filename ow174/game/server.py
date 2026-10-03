@@ -197,6 +197,11 @@ class Client:
         reliable = self.reliable[: messages.MAX_PER_KIND]
         unreliable = self.unreliable[: messages.MAX_PER_KIND]
         entities = self.entities + self.player.match.remote_movements(self.player)
+        # Diagnostic: keep the entity stream out of a 25005 datagram. Transport ACK only proves
+        # receipt, not that the client parsed the entity section after the JAM message.
+        has_kill_notice = any(len(encoded) >= 2 and encoded[0] == 2 and encoded[1] == 5 for _, encoded in reliable)
+        if has_kill_notice:
+            entities = []
         payload = self._payload(tick, reliable, unreliable, entities)
         while len(payload) > MAX_PAYLOAD and len(entities) > 1:
             entities = entities[: len(entities) // 2]
