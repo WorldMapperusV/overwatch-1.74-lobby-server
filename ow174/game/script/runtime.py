@@ -88,10 +88,16 @@ class Var:
         self.links: list[Link] = []
         self.watchers: dict[State, None] = {}
 
-    def value(self):
+    def value(self, exclude: "State | None" = None):
+        """Resolve the variable, optionally below one state's own override.
+
+        A linked state can read the variable it writes (Cassidy Deadeye's movement modifiers do this).
+        While that state evaluates its value, the client resolves the input underneath its own link;
+        feeding the state's output back into itself makes multiplicative Stack values recurse forever.
+        """
         value = self.base
         for link in self.links:
-            if link.state.active:
+            if link.state.active and link.state is not exclude:
                 value = link.state.output(link.slot)
         return value
 
@@ -130,7 +136,7 @@ class InstanceContext(Context):
             return None
         if self.watcher is not None:
             self.watcher.watch(var)
-        return var.value()
+        return var.value(self.watcher)
 
     def var(self, scope: int, var: int):
         return self._read(self.instance.find_var(scope, var, create=self.watcher is not None))
