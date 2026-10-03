@@ -1092,12 +1092,13 @@ class GamePadVibration(State):
 
 @state_class("STUStatescriptStateTrackTargets")
 class TrackTargets(State):
-    """A target search the server cannot run: it finds nothing."""
+    """Targets supplied by the body world for server-authoritative target searches."""
 
     family = "targets"
 
     def payload(self) -> dict:
-        return {"targets": ()}
+        targets = getattr(self.instance.component.world, "tracked_targets", ())
+        return {"targets": tuple((int(entity), 0) for entity in targets)}
 
 
 @state_class("STU_691BFA55", "STU_7CA2FBAF")
