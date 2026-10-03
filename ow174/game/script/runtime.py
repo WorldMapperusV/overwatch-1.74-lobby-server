@@ -508,7 +508,18 @@ class Instance:
             event = self.queue.pop(0)
             count += 1
             if count > EVENTS_PER_TIME:
-                log.warning("[script] instance %d: too many events at %d ms", self.id, now)
+                state = event.state
+                node = event.node
+                log.warning(
+                    "[script] instance %d: too many events at %d ms last="
+                    "(kind=%d op=%d param=%d state=%s class=%s node=%s nodeclass=%s) queue=%d",
+                    self.id, now, event.kind, event.op, event.param,
+                    state.index if state is not None else None,
+                    state.node.cls if state is not None else None,
+                    node.position if node is not None else None,
+                    node.cls if node is not None else None,
+                    len(self.queue),
+                )
                 self.stopped = True
                 return
             self.dispatch(event)
