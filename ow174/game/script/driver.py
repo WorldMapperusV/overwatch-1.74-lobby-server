@@ -245,41 +245,32 @@ class BodyScript:
         self._report_shots()
         self._charge_ult()
         if self.hero == CASSIDY and frame % 60 == 0:
-            weapon = next(
-                (item for item in self.component.instances.values() if item.graph.index == 0x01D2), None
+            charge = self.component.entity_var(ULT_CHARGE).value()
+            cost = self.component.entity_var(ULT_COST).value()
+            ult = [
+                {
+                    "graph": state.instance.graph.index,
+                    "state": state.index,
+                    "active": state.active,
+                    "flags": state.flags,
+                    "running": bool(state.flags & nodes.Ability.RUNNING),
+                    "watched": [var.key for var in state.watched],
+                    "changed": state.flags_changed,
+                    "buttons": state.buttons(),
+                }
+                for state in self.ultimates
+            ]
+            deadeye = next(
+                (item for item in self.component.instances.values() if item.graph.index == 0x022F), None
             )
-            if weapon is not None:
-                active = [
-                    (index, state.node.cls)
-                    for index, state in weapon.states.items()
-                    if state.active
-                ]
-                values = {
-                    var: (weapon.vars[var].value() if var in weapon.vars else None)
-                    for var in (28, 51, 53, 198, 231, 581, 1593, 6884, 6773, 10268, 31196)
-                }
-                disabled = {
-                    button: [(state.instance.graph.index, state.index) for state in states if state.active]
-                    for button, states in self.component.disabled.items()
-                    if any(state.active for state in states)
-                }
-                switch = weapon.states.get(1)
-                reload_states = {
-                    index: (state.active, state.payload())
-                    for index, state in weapon.states.items()
-                    if index in (1, 9, 24, 37, 38, 55)
-                }
-                log.info(
-                    "Cassidy frame=%d held=%s disabled=%s switch1=%s reload=%s weapon_active=%s weapon_vars=%s",
-                    frame, self.component.held, disabled,
-                    {
-                        **(switch.payload() if switch is not None else {}),
-                        "watched": [var.key for var in switch.watched] if switch is not None else [],
-                        "flags_changed": switch.flags_changed if switch is not None else None,
-                        "pending": getattr(switch, "pending", None),
-                    },
-                    reload_states, active, values,
-                )
+            active = (
+                [(index, state.node.cls) for index, state in deadeye.states.items() if state.active]
+                if deadeye is not None else []
+            )
+            log.info(
+                "Cassidy ult frame=%d charge=%s cost=%s held=%s ult=%s deadeye_active=%s",
+                frame, charge, cost, self.component.held, ult, active,
+            )
 
     def _report_shots(self) -> None:
         """The shots the active volleys fired up to the end of the frame go on the component's shot list
