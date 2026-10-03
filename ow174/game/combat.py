@@ -749,8 +749,7 @@ class Combat:
         if killer.client is None:
             return
         notice = {
-            # Diagnostic: isolate the 64-bit identity field while leaving both entities normal.
-            "+0x78": 0 if killer.hero.guid == CASSIDY else killer.account_lo,
+            "+0x78": killer.account_lo,
             "+0x80": {"+0x0": killer.body},
             "+0x84": {"+0x0": victim},
             "+0x88": 0,
