@@ -756,10 +756,6 @@ class Combat:
             "+0x89": False,
         }
         killer.client.queue_reliable(KILL_NOTICE, notice)
-        # Diagnostic: 25005 enters the client-only elimination UI. Reassert the mode UI graph
-        # immediately afterward; if Cassidy's ult presenter resumes, the notice is leaving 1FC0/0CB6
-        # in stale client state rather than corrupting the body's replicated ultimate variables.
-        killer.client.queue_entities([killer.mode_script.full_frame(mode_frame({}))])
 
     def _died(self, killer, victim, critical: bool, loadout) -> None:
         """A player died: the notices, his body script's "died" (the kill feed line), and the respawn."""
