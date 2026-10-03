@@ -115,8 +115,8 @@ class BodyWorld(runtime.World):
         if cls == "STU_4A101787":  # its evaluator (0x7FF789BFF730) always answers false
             return False
         if cls == "STU_AC829876":  # does an entity pass a filter (teams, tags): not modelled
-            entity = expr.to_entity(instance.evaluate(cfg.get("m_entity")))
-            return entity in self.tracked_targets
+            expr.warn_once(cls, "entity filters (STU_AC829876) answer false")
+            return False
         return super().native(cfg, instance)
 
 
