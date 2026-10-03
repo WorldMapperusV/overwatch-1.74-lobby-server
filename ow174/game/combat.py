@@ -732,25 +732,7 @@ class Combat:
         if killed:
             self._died(shooter, victim, critical, loadout)
 
-    def _tell_hit(self, shooter, target: Target, dealt: float, flags: int, frame: int) -> None:
-        """25001 to the shooter: the hit marker and the target's health bar.
-
-        Diagnostic: Cassidy bot hits name the shooter's known-valid body as the 25001 target while damage
-        still applies to the bot. If component 59 starts presenting these hits, the missing prerequisite is
-        the Training Bot entity representation rather than the hit message itself.
-        """
-        client = getattr(shooter, "client", None)
-        if client is None:
-            return
-        hit_entity = target.entity
-        if shooter.hero.guid == CASSIDY and isinstance(target.owner, bots.Bot):
-            hit_entity = shooter.body
-        value = {
-            "+0x78": {"+0x0": {"+0x0": hit_entity}, "+0x4": max(1, round(dealt)), "+0x8": flags},
-            "+0x84": frame & 0xFFFFFFFF,
-        }
-        client.queue_reliable(HIT, value)
-
+    def _tell_hit(self, shooter, target: Target, dealt: float, flags: int, frame: int) -> None:\n        \"\"\"25001 to the shooter: the hit marker and the target's health bar (frame: the shot's).\"\"\"\n        client = getattr(shooter, \"client\", None)\n        if client is None:\n            return\n        value = {\n            \"+0x78\": {\"+0x0\": {\"+0x0\": target.entity}, \"+0x4\": max(1, round(dealt)), \"+0x8\": flags},\n            \"+0x84\": frame & 0xFFFFFFFF,\n        }\n        client.queue_reliable(HIT, value)\n
     def _kill_notice(self, killer, victim: int) -> None:
         """25005 to the killer: "ELIMINATED: <name>" (1126.07C; +0x89 assist would be 01F0.07C, +0x88 a
         score shown when above 0). Its handler (0x7FF7895D2B50) reads only +0x84, +0x88 and +0x89."""
@@ -763,7 +745,7 @@ class Combat:
             "+0x88": 0,
             "+0x89": False,
         }
-        killer.client.queue_reliable(KILL_NOTICE, notice)
+        killer.client.queue_reliable(KILL_NOTICE, notice)\n        # Diagnostic: 25005 enters the client-only elimination UI. Reassert the mode UI graph\n        # immediately afterward; if Cassidy's ult presenter resumes, the notice is leaving 1FC0/0CB6\n        # in stale client state rather than corrupting the body's replicated ultimate variables.\n        killer.client.queue_entities([killer.mode_script.full_frame(mode_frame({}))])
 
     def _died(self, killer, victim, critical: bool, loadout) -> None:
         """A player died: the notices, his body script's "died" (the kill feed line), and the respawn."""
