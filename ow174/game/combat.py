@@ -715,12 +715,6 @@ class Combat:
             vitals.died_at = self.now
             vitals.killer = getattr(shooter, "body", None)
         flags = (CRITICAL if critical else 0) | (KILLING if killed else 0)
-        # Diagnostic: Cassidy's client-only Deadeye HUD freezes on a bot kill. Keep the 25005
-        # elimination notice, but omit the still-unverified killing bit from Cassidy's final 25001
-        # hit record to isolate which death-only client signal conflicts with the presenter.
-        if killed and shooter.hero.guid == CASSIDY:
-            flags &= ~KILLING
-            log.info("[game] %s: suppressing Cassidy 25001 killing flag diagnostic", self.match.label())
         self._tell_hit(shooter, target, dealt, flags, frame)
         shooter.stats.add(stats.HERO_DAMAGE, dealt)
         if isinstance(target.owner, bots.Bot):
@@ -728,7 +722,19 @@ class Combat:
                 target.owner.died(self.tick)
                 self.respawns.append((self.now + BOT_RESPAWN, target.owner))
                 shooter.stats.add(stats.ELIMINATIONS)
-                self._kill_notice(shooter, target.entity)
+                # Diagnostic: 25005 normally receives the killed bot body here. Cassidy's client-only
+                # Deadeye presenter freezes on that notice, and bot bodies carry no player/name metadata.
+                # Point the same notice at the shooter's known player body to isolate whether the bot
+                # entity reference, rather than 25005 itself, is what corrupts the client-side state.
+                notice_victim = shooter.body if shooter.hero.guid == CASSIDY else target.entity
+                if shooter.hero.guid == CASSIDY:
+                    log.info(
+                        "[game] %s: Cassidy bot-kill notice diagnostic victim %08X -> player body %08X",
+                        self.match.label(),
+                        target.entity,
+                        notice_victim,
+                    )
+                self._kill_notice(shooter, notice_victim)
                 log.info("[game] %s: %s killed %s", self.match.label(), shooter.name, target.owner.name)
             return
         victim = target.owner
