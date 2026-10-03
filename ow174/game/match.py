@@ -441,7 +441,7 @@ class Match:
         components = world.health(bot.health, bot.health)
         components[26] = [TEAM_BIT << bot.team]
         return world.create(
-            origin, bot.body, components, flags=BODY_FLAGS, position=bot.position, rotation=_rotation(bot.yaw)
+            origin, bot.body, components, flags=BODY_FLAGS | WITH_PARTICIPANT, position=bot.position, rotation=_rotation(bot.yaw)
         )
 
     @staticmethod
