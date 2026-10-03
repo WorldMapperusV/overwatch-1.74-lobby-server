@@ -256,16 +256,24 @@ class BodyScript:
                 ]
                 values = {
                     var: (weapon.vars[var].value() if var in weapon.vars else None)
-                    for var in (28, 53, 231, 581, 6884, 6773, 10268)
+                    for var in (28, 51, 53, 198, 231, 581, 1593, 6884, 6773, 10268, 31196)
                 }
                 disabled = {
                     button: [(state.instance.graph.index, state.index) for state in states if state.active]
                     for button, states in self.component.disabled.items()
                     if any(state.active for state in states)
                 }
+                switch = weapon.states.get(1)
+                reload_states = {
+                    index: (state.active, state.payload())
+                    for index, state in weapon.states.items()
+                    if index in (1, 9, 24, 37, 38, 55)
+                }
                 log.info(
-                    "Cassidy frame=%d held=%s disabled=%s weapon_active=%s weapon_vars=%s",
-                    frame, self.component.held, disabled, active, values,
+                    "Cassidy frame=%d held=%s disabled=%s switch1=%s reload=%s weapon_active=%s weapon_vars=%s",
+                    frame, self.component.held, disabled,
+                    switch.payload() if switch is not None else None,
+                    reload_states, active, values,
                 )
 
     def _report_shots(self) -> None:
