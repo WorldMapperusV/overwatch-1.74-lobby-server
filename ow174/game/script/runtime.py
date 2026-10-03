@@ -504,32 +504,11 @@ class Instance:
     def drain(self) -> None:
         now = self.component.now
         count = 0
-        recent = []
-        signatures = {}
         while self.queue and self.queue[0].time <= now and not self.stopped:
             event = self.queue.pop(0)
             count += 1
-            state = event.state
-            node = event.node
-            signature = (
-                event.kind,
-                event.op,
-                event.param,
-                state.node.index if state is not None else None,
-                state.node.cls if state is not None else None,
-                node.index if node is not None else None,
-                node.cls if node is not None else None,
-            )
-            signatures[signature] = signatures.get(signature, 0) + 1
-            recent.append(signature)
-            if len(recent) > 32:
-                recent.pop(0)
             if count > EVENTS_PER_TIME:
-                common = sorted(signatures.items(), key=lambda item: item[1], reverse=True)[:12]
-                log.warning(
-                    "[script] instance %d: too many events at %d ms common=%s recent=%s",
-                    self.id, now, common, recent,
-                )
+                log.warning("[script] instance %d: too many events at %d ms", self.id, now)
                 self.stopped = True
                 return
             self.dispatch(event)
