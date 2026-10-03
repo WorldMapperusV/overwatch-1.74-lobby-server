@@ -55,6 +55,7 @@ from ow174.game.bits import BitWriter
 from ow174.game.collision import AX, AY, AZ, BX, BY, BZ, CELL, CX, CY, CZ, MASK, MOVER, NUMBER
 from ow174.game.mover import mover_data
 from ow174.game.script import expr, graph, runtime
+from ow174.game.content import CASSIDY
 from ow174.game.statescript import InstanceWire, body_full_frame
 from ow174.game.world import ARMOUR_POOL, HEALTH_POOL, OP_CREATE, OP_DESTROY, OP_UPDATE, POOLS, SHIELDS_POOL
 
@@ -754,6 +755,12 @@ class Combat:
             "+0x88": 0,
             "+0x89": False,
         }
+        # Diagnostic: Cassidy's client-only Deadeye HUD stops updating exactly when a bot dies.
+        # Suppress only the elimination notice for Cassidy to distinguish 25005 from the final 25001
+        # hit record; the latter still carries the KILLING flag and normal hit/kill feedback.
+        if killer.hero == CASSIDY:
+            log.info("[game] %s: suppressing Cassidy kill notice diagnostic", self.match.label())
+            return
         killer.client.queue_reliable(KILL_NOTICE, notice)
 
     def _died(self, killer, victim, critical: bool, loadout) -> None:
