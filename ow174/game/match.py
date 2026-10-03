@@ -127,6 +127,9 @@ class Player:
         # Entity records process StateScript channel 1 before component channel 4, so sending both in
         # the pick frame can evaluate hero graph state before body creation/possession has settled.
         self.body_script_pending = False
+        # 20E4 installs its client-only 0717 listener at controller creation, but the event's
+        # success path resolves the possessed body. Fire it only after possession + body script.
+        self.practice_hud_event_pending = False
 
     @property
     def team_bit(self) -> int:
@@ -339,7 +342,16 @@ class Match:
                     [player.body_script.full_frame(soldier_body_roots_probe(cmfd, player.body))]
                 )
                 player.body_script_pending = False
+                if self.controller is heroselect.PRACTICE:
+                    player.practice_hud_event_pending = True
                 log.info("[game] %s: %s's body statescript sent after possession", self.label(), player.name)
+            if player.practice_hud_event_pending and not client.entities:
+                cmfd = player.mode_script.next_cmfd(self._newest_frame(player))
+                client.queue_entities(
+                    [player.mode_script.full_frame(practice_mode_root_frame(cmfd, fire_hud_event=True))]
+                )
+                player.practice_hud_event_pending = False
+                log.info("[game] %s: %s's Practice HUD 0717 fired after possession", self.label(), player.name)
             if player.body_script.data_last and now >= player.body_script.next_ack:
                 self._owner_ack(player, player.body_script, now)
             if self.assembling() and player.steps_done >= 4 and now >= player.next_countdown:
