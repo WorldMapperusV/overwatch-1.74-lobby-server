@@ -715,6 +715,12 @@ class Combat:
             vitals.died_at = self.now
             vitals.killer = getattr(shooter, "body", None)
         flags = (CRITICAL if critical else 0) | (KILLING if killed else 0)
+        # Diagnostic: Cassidy's client-only Deadeye HUD freezes on a bot kill. Keep the 25005
+        # elimination notice, but omit the still-unverified killing bit from Cassidy's final 25001
+        # hit record to isolate which death-only client signal conflicts with the presenter.
+        if killed and shooter.hero.guid == CASSIDY:
+            flags &= ~KILLING
+            log.info("[game] %s: suppressing Cassidy 25001 killing flag diagnostic", self.match.label())
         self._tell_hit(shooter, target, dealt, flags, frame)
         shooter.stats.add(stats.HERO_DAMAGE, dealt)
         if isinstance(target.owner, bots.Bot):
@@ -755,12 +761,6 @@ class Combat:
             "+0x88": 0,
             "+0x89": False,
         }
-        # Diagnostic: Cassidy's client-only Deadeye HUD stops updating exactly when a bot dies.
-        # Suppress only the elimination notice for Cassidy to distinguish 25005 from the final 25001
-        # hit record; the latter still carries the KILLING flag and normal hit/kill feedback.
-        if killer.hero.guid == CASSIDY:
-            log.info("[game] %s: suppressing Cassidy kill notice diagnostic", self.match.label())
-            return
         killer.client.queue_reliable(KILL_NOTICE, notice)
 
     def _died(self, killer, victim, critical: bool, loadout) -> None:
