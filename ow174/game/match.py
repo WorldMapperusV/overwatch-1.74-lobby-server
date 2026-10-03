@@ -827,6 +827,12 @@ class Match:
         """One new command frame for the body's statescript. A failure turns it off for this body (logged)
         instead of breaking the tick."""
         try:
+            targets = (
+                bot.entity
+                for bot in self.bots
+                if not bot.dead and bot.team != player.team
+            )
+            player.body_script.set_tracked_targets(targets)
             player.body_script.command(
                 command.frame, command.buttons, command.action, command.forward, command.right
             )
