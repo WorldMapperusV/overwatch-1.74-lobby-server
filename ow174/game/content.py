@@ -10,6 +10,7 @@ from ow174.paths import DATA_DIR
 
 HEROES_PATH = DATA_DIR / "game_heroes_174.json"
 MAPS_PATH = DATA_DIR / "game_maps_174.json"  # tools/extract_game_maps.py
+CASSIDY = 0x02E0000000000042
 SOLDIER = 0x02E000000000006E
 PRACTICE_RANGE_MODE = 0x0230000000000018
 # Modes whose loading screen waits for a state of the mode's own script (m_0FC17230 = 1 in the
