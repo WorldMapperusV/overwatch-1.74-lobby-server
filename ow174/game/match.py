@@ -33,7 +33,7 @@ import time
 from ow174.game import bots, combat, correction, heroselect, movelog, notices, pools, stats, world
 from ow174.game.collision import MOVER, TEAM0, TEAM1, world_when_ready
 from ow174.game.commands import Command, CommandQueue
-from ow174.game.content import SOLDIER, GameMap, Hero, heroes, spawn_point
+from ow174.game.content import CASSIDY, SOLDIER, GameMap, Hero, heroes, spawn_point
 from ow174.game.mover import CROUCHED, GRAVITY_SCALE, Mover, mover_data, statescript_mods
 from ow174.game.script.driver import BodyScript
 from ow174.game.statescript import Stream, owner_ack
@@ -73,7 +73,7 @@ PLAYER_FILTER = 0x00040001
 HEALTH: float | None = None
 # The heroes whose body statescript the server runs (ow174/game/script): their weapons and
 # abilities work and the client keeps its predictions. None = every hero.
-BODY_SCRIPT_HEROES: set[int] | None = {SOLDIER}
+BODY_SCRIPT_HEROES: set[int] | None = {SOLDIER, CASSIDY}
 
 # ClientInGame 20308 {4 flags, card}: a player's card for the client's player list, keyed by the id in
 # his entity's component 29 (0x7FF7896E88B0). With the first and fourth flag on it also posts "<name>
