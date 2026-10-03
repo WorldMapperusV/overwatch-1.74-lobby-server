@@ -101,6 +101,7 @@ class BodyWorld(runtime.World):
         super().__init__(hero, mode)
         self.body = body
         self.throttles = (0, 0)  # the command being run: (forward, right), -127..127
+        self.tracked_targets: tuple[int, ...] = ()
 
     def native(self, cfg: dict, instance):
         cls = cfg.get("$")
@@ -174,6 +175,9 @@ class BodyScript:
 
     def __repr__(self) -> str:
         return f"<BodyScript {self.entity:08X} {self.record.get('name')} frame {self.frame}>"
+
+    def set_tracked_targets(self, entities) -> None:
+        self.world.tracked_targets = tuple(int(entity) for entity in entities)
 
     # --- the instances -----------------------------------------------------------------------------
 
