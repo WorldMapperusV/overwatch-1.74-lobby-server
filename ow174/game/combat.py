@@ -749,7 +749,7 @@ class Combat:
         if killer.client is None:
             return
         notice = {
-            "+0x78": 0,
+            "+0x78": killer.account_lo,
             "+0x80": {"+0x0": killer.body},
             "+0x84": {"+0x0": victim},
             "+0x88": 0,
