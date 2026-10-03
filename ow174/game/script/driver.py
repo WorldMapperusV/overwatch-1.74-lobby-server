@@ -271,9 +271,23 @@ class BodyScript:
                 [(index, state.node.cls) for index, state in deadeye.states.items() if state.active]
                 if deadeye is not None else []
             )
+            target_states = (
+                [
+                    {
+                        "state": index,
+                        "active": state.active,
+                        "targets": state.payload().get("targets", ()) if state.active else (),
+                    }
+                    for index, state in deadeye.states.items()
+                    if isinstance(state, nodes.TrackTargets)
+                ]
+                if deadeye is not None else []
+            )
             log.info(
-                "Cassidy ult frame=%d charge=%s cost=%s held=%s ult=%s deadeye_active=%s",
+                "Cassidy ult frame=%d charge=%s cost=%s held=%s ult=%s deadeye_active=%s "
+                "tracked=%s target_states=%s",
                 frame, charge, cost, self.component.held, ult, active,
+                self.world.tracked_targets, target_states,
             )
 
     def _report_shots(self) -> None:
