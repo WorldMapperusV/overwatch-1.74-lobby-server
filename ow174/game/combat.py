@@ -749,9 +749,9 @@ class Combat:
         if killer.client is None:
             return
         notice = {
-            "+0x78": killer.account_lo,
-            # Diagnostic: isolate the pre-victim entity carried by 25005.
-            "+0x80": {"+0x0": 0x1FFFFFFF if killer.hero.guid == CASSIDY else killer.body},
+            # Diagnostic: isolate the 64-bit identity field while leaving both entities normal.
+            "+0x78": 0 if killer.hero.guid == CASSIDY else killer.account_lo,
+            "+0x80": {"+0x0": killer.body},
             "+0x84": {"+0x0": victim},
             "+0x88": 0,
             "+0x89": False,
