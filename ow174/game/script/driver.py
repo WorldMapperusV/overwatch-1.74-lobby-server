@@ -272,7 +272,12 @@ class BodyScript:
                 log.info(
                     "Cassidy frame=%d held=%s disabled=%s switch1=%s reload=%s weapon_active=%s weapon_vars=%s",
                     frame, self.component.held, disabled,
-                    switch.payload() if switch is not None else None,
+                    {
+                        **(switch.payload() if switch is not None else {}),
+                        "watched": [var.key for var in switch.watched] if switch is not None else [],
+                        "flags_changed": switch.flags_changed if switch is not None else None,
+                        "pending": getattr(switch, "pending", None),
+                    },
                     reload_states, active, values,
                 )
 
