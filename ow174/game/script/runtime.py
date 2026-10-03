@@ -735,6 +735,11 @@ class State:
             return
         self.ending = True
         self.instance.cancel(self)
+        # cancel() drops queued CHECK/CHANGED events.  Their coalescing flags belong to those
+        # events, not to the next activation of this state; carrying either flag across End
+        # prevents a re-entered state from ever queueing that event again.
+        self.flags_changed = False
+        self.flags_check = False
         self.instance.exit_subgraph(self.node, "m_subgraphPlug")
         self.on_end(finished)
         self.unwatch()
