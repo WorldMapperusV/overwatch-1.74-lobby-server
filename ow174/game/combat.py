@@ -735,17 +735,19 @@ class Combat:
     def _tell_hit(self, shooter, target: Target, dealt: float, flags: int, frame: int) -> None:
         """25001 to the shooter: the hit marker and the target's health bar.
 
-        Diagnostic: the client's component-59 hit history ages these records in the world/game timeline.
-        Hitscan and melee used to put a command frame here while projectile hits used self.tick, mixing two
-        frame domains. Keep lag compensation on the command frame, but timestamp every 25001 consistently
-        with the current game tick.
+        Diagnostic: Cassidy bot hits name the shooter's known-valid body as the 25001 target while damage
+        still applies to the bot. If component 59 starts presenting these hits, the missing prerequisite is
+        the Training Bot entity representation rather than the hit message itself.
         """
         client = getattr(shooter, "client", None)
         if client is None:
             return
+        hit_entity = target.entity
+        if shooter.hero.guid == CASSIDY and isinstance(target.owner, bots.Bot):
+            hit_entity = shooter.body
         value = {
-            "+0x78": {"+0x0": {"+0x0": target.entity}, "+0x4": max(1, round(dealt)), "+0x8": flags},
-            "+0x84": self.tick & 0xFFFFFFFF,
+            "+0x78": {"+0x0": {"+0x0": hit_entity}, "+0x4": max(1, round(dealt)), "+0x8": flags},
+            "+0x84": frame & 0xFFFFFFFF,
         }
         client.queue_reliable(HIT, value)
 
