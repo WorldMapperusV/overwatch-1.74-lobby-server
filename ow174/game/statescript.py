@@ -1,10 +1,7 @@
 """Statescript on ch1: frames that put graph instances on an entity and set their states and
 variables. The client runs the graphs; the server says which instances exist and what is on.
 
-Read in the client (runtime-decrypted 1.74 image; RVAs are ASLR-independent):
-- The chunk reader is Overwatch.exe+0x996450. The owner-frame instance-list reader is +0xA0E1D0,
-  reached by the higher-level apply routine +0xA0E3C0; a new instance descriptor is read at +0xA0C510
-  and its graph/parent/reference descriptor body at +0xA0ADC0.
+Read in the client (the chunk reader 0x7FF7898A6450, the frame 0x7FF78991E3C0):
 - A chunk is `w_u32 first | w_var span | bit fragmented | w_var size in bits | payload`. first 0 is a
   full frame. The client keeps the highest `last` (first + span) it applied and drops chunks at or
   below it, so an unchanged chunk can be sent again safely.
@@ -26,6 +23,7 @@ import struct
 from dataclasses import dataclass, field
 
 from ow174.game.bits import BitWriter
+from ow174.game.script import codecs
 from ow174.game.world import EntityUpdate
 
 
@@ -36,110 +34,14 @@ class Graph:
     sync_vars: int  # per-instance variable presence bits
 
 
-# From the graph data (the counts match what worked in ProCore's live tests).
+# From the graph data (the counts were tested live).
 CONTROLLER = Graph(0x13C1, 43, 12)  # the player's controller in the Practice Range mode
 PVP_CONTROLLER = Graph(0x0C90, 118, 29)  # the controller of both teams in the PvP modes
 HUD = Graph(0x20E4, 1, 0)  # 13C1's weapon and ability HUD (0C90 starts its own)
-
-# Practice also has a game-mode root, 13C0, on the game-mode entity.  One of its ordinary Entry
-# nodes starts raw state 5 -> 0CBB.  0CBB raw state 42 is the 0717.025 sender that wakes 20E4's
-# client-only possession/HUD presenter path.
-PRACTICE_MODE_ROOT = Graph(0x13C0, 20, 3)
-PRACTICE_MODE_EVENTS = Graph(0x0CBB, 69, 13)
 HERO_SELECT_HOST = Graph(0x288A, 6, 0)
 HERO_SELECT = Graph(0x288B, 30, 4)  # presents the hero select screen 008C.05A
 TEAM_ENTRY = Graph(0x288D, 0, 0)  # client-only: posts its entity to the local player's team list
 
-# Soldier: 76's body definition 03CF starts these nine graphs, in this definition order.  The
-# second number is the owner-frame state-bit count; the third is the count of instance-scoped sync
-# variables (not the graph's padded sync table length).  Keep the complete set together in any body
-# owner full-frame probe: the client treats an omitted network instance as destroyed.
-SOLDIER_BODY_GRAPHS = (
-    Graph(0x0033, 12, 4),
-    Graph(0x004B, 39, 4),
-    Graph(0x0043, 27, 7),
-    Graph(0x0251, 3, 0),
-    Graph(0x0255, 31, 9),
-    Graph(0x0257, 21, 6),
-    Graph(0x0259, 44, 7),
-    Graph(0x091B, 2, 0),
-    Graph(0x08B6, 13, 2),
-)
-
-# 004B's creation entry starts five SubScripts simultaneously.  Their parent STATE indices are
-# 0, 3, 5, 10 and 18 respectively (descriptor parents use state indices, not owner-bit indices).
-# In particular 01CF is the child containing several UX presenters and the network sync for v17906,
-# one of 20E4's HUD inputs.  This is why probing 0257 alone could never reconstruct the ability HUD.
-SOLDIER_004B_INITIAL_CHILDREN = (
-    (0, Graph(0x01C7, 44, 1)),
-    (3, Graph(0x01CF, 41, 22)),
-    (5, Graph(0x02C5, 13, 4)),
-    (10, Graph(0x0B8B, 4, 0)),
-    (18, Graph(0x0C7D, 0, 0)),
-)
-
-# Soldier startup reconstruction from the extracted 1.74 graphs and the client reader.
-# IMPORTANT: these are OWNER-FRAME bit indices, not raw graph state indices.  Owner frames omit
-# client-only and server-only states, so raw state numbers must be compacted before serialization.
-# For 0033 the 12 owner bits map to raw states 0,1,3,4,5,10,11,12,13,24,25,30. Live A/B tests
-# show bare owner bits 3 (raw BooleanSwitch 4), 5 (raw BooleanSwitch 10), 9 and 10 (raw Stack
-# 24/25) crash, while owner bit 8 (raw state 13, STU_CD46AF93) is accepted. The graph's first
-# ordinary Entry points directly to raw state 13; its subgraph lists raw states 4,3,0,10,1.
-# Therefore those nested states must not be mistaken for independent creation-time owner states.
-# 0033 owner-bit map from the extracted graph after filtering client/server-only states:
-#   0=HealthPool(raw 0), 1=HealthPool(1), 2=HealthPool(3), 3=BooleanSwitch(4),
-#   4=ModifyHealth(5), 5=BooleanSwitch(10), 6=STU_87621906(11), 7=Wait(12),
-#   8=STU_CD46AF93(13), 9=Stack(24), 10=Stack(25), 11=STU_BD02E168(30).
-# Live probes: 0,1,2,4,6,7,8 survive bare activation; 3,5,9,10 crash.  The failing bits
-# therefore cluster by state class/lifecycle (BooleanSwitch and Stack), not by bit-vector position.
-SOLDIER_INITIAL_OWNER_BITS = {
-    0x0033: (8,),
-    0x004B: (0, 3, 5, 10, 12, 13, 14, 15, 18, 19, 20, 22, 23, 24, 25, 27, 31),
-    0x0043: (5, 14, 20), 0x0251: (0, 1),
-    0x0255: (2, 4, 6, 7, 8, 16, 17, 18, 22, 25),
-    0x0257: (7, 11, 12, 13, 18), 0x0259: (0, 15, 17),
-    0x091B: (0,), 0x08B6: (0, 1, 4, 7, 9, 10),
-}
-
-# Active SubScripts reveal three children that were missing from the first topology pass: 004B state
-# 24 -> 1463, 08B6 state 4 -> 0BF8, and 01CF state 32 -> 0E8F.  None of those three starts another
-# SubScript, so this closes the recursively reachable creation topology for Soldier's body roots.
-SOLDIER_INITIAL_CHILDREN = (
-    (0x004B, 0, 0x01C7), (0x004B, 3, 0x01CF), (0x004B, 5, 0x02C5),
-    (0x004B, 10, 0x0B8B), (0x004B, 18, 0x0C7D), (0x004B, 24, 0x1463),
-    (0x08B6, 4, 0x0BF8), (0x01CF, 32, 0x0E8F),
-)
-SOLDIER_CHILD_GRAPHS = {
-    0x01C7: Graph(0x01C7, 44, 1), 0x01CF: Graph(0x01CF, 41, 22),
-    0x02C5: Graph(0x02C5, 13, 4), 0x0B8B: Graph(0x0B8B, 4, 0),
-    0x0C7D: Graph(0x0C7D, 0, 0), 0x1463: Graph(0x1463, 2, 0),
-    0x0BF8: Graph(0x0BF8, 6, 0), 0x0E8F: Graph(0x0E8F, 7, 3),
-}
-SOLDIER_INITIAL_CHILD_OWNER_BITS = {
-    0x01C7: (4, 7, 9, 11, 14, 16, 17, 22, 28, 29, 31, 32, 33),
-    0x01CF: (1, 4, 6, 7, 10, 13, 15, 16, 22),
-    0x02C5: (), 0x0B8B: (), 0x0C7D: (), 0x1463: (0,), 0x0BF8: (0,), 0x0E8F: (5,),
-}
-
-# 03CF also creates definition-level weapon manager 0015 and primary weapon 0254.  Their graph sizes
-# are owner-state counts (client/server-only states removed) and compact INSTANCE sync-var counts.
-SOLDIER_WEAPON_MANAGER = Graph(0x0015, 35, 1)
-SOLDIER_PRIMARY_WEAPON = Graph(0x0254, 81, 23)
-# BooleanSwitch states are local control flow, not remotely synchronized leaves.  Live testing
-# confirms that asserting 0015 owner bit 11 (raw BooleanSwitch state 11) from the server crashes
-# during Hero Selection.  The extracted graphs also classify 0254 owner bits 0 and 72 as
-# non-remote BooleanSwitch states, so exclude all three from authoritative network startup.
-# Keep only 0254's genuinely remote startup leaves: Ability 31, ChaseVar 56, and Stack 58.
-SOLDIER_WEAPON_INITIAL_OWNER_BITS = {0x0015: (), 0x0254: (31, 56, 58)}
-
-# Known literal Entry writes that a server-created instance must reproduce because its server Entry
-# actions do not execute locally: 0033 entity v32350=.3; 004B entity v14676=true; 0043 instance
-# v476=30, v215=.5, v1258=0, v1257=1; 0255 instance v1002=.5, v636=.3; 01CF instance v7044=true,
-# v8831=true; 01C7 entity v31296=1.  0254 initializes v476=20, v581=1.5, v6884=.511, v6885=.1,
-# v229=0, v230=0, v1769=100, v1770=100 and derives v198/v53/v7185.  0015's v9526/v9573 writes are
-# self/default expressions rather than independent constants.  The remaining implementation task is
-# now mechanical: assign ids to these 19 instances, attach the eight children above, put child ids in
-# the corresponding SubScript state payloads, and serialize the complete authoritative body frame.
 
 class Value:
     tag: int
@@ -220,13 +122,12 @@ class Instance:
     presence: dict[int, Value] = field(default_factory=dict)  # presence bit -> value
     extra: dict[int, Value] = field(default_factory=dict)  # variable id -> value
     active: dict[int, BitWriter | None] = field(default_factory=dict)  # owner state bit -> payload
-    instance_flag: bool = False  # new-instance descriptor flag consumed before parent/reference data
 
 
 def _descriptor(out: BitWriter, instance: Instance) -> None:
     out.bits(instance.graph.index, 16)
     out.bit(0)  # the instance lives on this entity
-    out.bit(instance.instance_flag)  # new-instance creation metadata
+    out.bit(0)  # flag
     if instance.parent is None:
         out.bit(0)
     else:
@@ -283,231 +184,6 @@ def owner_full_frame(cmfd: int, instances: list[Instance], entity_vars: dict[int
         out.bits(0b11, 2)  # the instance's event list ends (code 3)
     out.bits(0, 2)  # the frame's event lists: none
     return out
-
-
-
-
-def soldier_body_roots_probe(cmfd: int, body_entity: int) -> BitWriter:
-    """Add 004B state 0 + child 01C7 on top of the proven coherent 0033 startup set.
-
-    The previous live test established that 0033 owner bits 0,1,2,3,5,8 are accepted together.
-    004B state 0 is a SubScript, so it must carry a child instance id and the matching 01C7
-    descriptor must be present; sending the state bit alone is not a structurally valid probe.
-    """
-    instances = [
-        Instance(index, graph)
-        for index, graph in enumerate(SOLDIER_BODY_GRAPHS, start=1)
-    ]
-    # Keep the now-proven coherent 0033 startup configuration as the baseline while adding
-    # the first 004B child-bearing state. This makes the probe cumulative: any regression from
-    # the previous live test is attributable to 004B state 0 / child 01C7.
-    health = next(item for item in instances if item.graph.index == 0x0033)
-    health.active = {bit: None for bit in (0, 1, 2, 3, 5, 8)}
-
-    # Clean A/B testing now proves 0033 owner bit 6 is also accepted.  Confirmed-safe together:
-    # 0, 1, 2, 4, 6.  Bare activation of 3 and 5 crashes.  Keep the safe set and add owner bit 7
-    # as the sole new change, continuing the direct map before investigating the failing states'
-    # state-specific payload or initialization requirements.
-    # Complete live classification: bare activation is safe for 0,1,2,4,6,7,8,11 and crashes
-    # for 3,5,9,10.  Keep the full known-safe set as the new control while BooleanSwitch (3,5)
-    # and Stack (9,10) are investigated separately.
-    health.active = {bit: None for bit in (0, 1, 2, 4, 6, 7, 8, 11)}
-    # 0033's server-side creation Entry writes v32350=.3.  A network-created graph does not
-    # execute that server Entry locally, so carry the literal initialization in its instance
-    # variable tail before any dependent health/HUD state evaluates.
-    health.extra[32350] = Float(0.3)
-
-    # HUD reconstruction now moves to the weapon path.  20E4 itself is already alive; Soldier's
-    # definition-level weapon manager (0015) is the next upstream graph.  Its descriptor is
-    # live-proven safe, but activating owner bit 11 bare crashes during Hero Selection.  That state
-    # is a BooleanSwitch and therefore needs its class-specific lifecycle/payload reconstructed
-    # before it can be serialized.  Keep the manager state-free as the proven control.
-    # 0015 raw state 44 / owner bit 34 is a genuine remote-sync leaf.  It exports v3772,
-    # one of the values consumed by 01CF's 56-value HUD bundle.  Unlike owner bit 11 this is
-    # STU_9D7BF987, not local BooleanSwitch control flow.
-    instances.append(Instance(10, SOLDIER_WEAPON_MANAGER, active={34: None}))
-
-    # 0015's descriptor is now live-proven safe.  Add Soldier's primary weapon graph 0254 as a
-    # second descriptor-only instance.  Keep both graphs' states and variables off: this isolates
-    # whether the primary weapon object itself is accepted before enabling ammo/ability/UX states.
-    weapon = Instance(11, SOLDIER_PRIMARY_WEAPON)
-    instances.append(weapon)
-
-    # Both 0015 and 0254 descriptors are now live-proven safe.  Start 0254 state isolation from
-    # that clean control with owner bit 0 as the sole active weapon state.  No weapon variables or
-    # manager states are sent yet, so a change in behavior is attributable to 0254 bit 0.
-    # 0254's ordinary Entry reaches its initialization chain separately from its initial Stack.
-    # Reproduce only the literal instance writes first, with every 0254 state still off.  This
-    # isolates the arbitrary-id variable serialization before retrying BooleanSwitch/Ability states.
-    # The compact 0254 variable table is the ordered subset of sync_vars whose first metadata
-    # flag is zero.  These Entry-written values therefore have real owner-frame presence slots;
-    # only 6884/6885 fall outside that compact table and belong in the arbitrary-id tail.
-    weapon.presence.update({
-        12: Float(1.5),   # v581
-        15: Float(20.0),  # v476
-        17: Int(0),       # v229
-        18: Float(0.0),   # v230
-        20: Int(100),     # v1769
-        21: Int(100),     # v1770
-    })
-    weapon.extra.update({
-        6884: Float(0.511),
-        6885: Float(0.1),
-    })
-
-    # HUD dependency found in the extracted graphs: 20E4's sole owner state is the remote-sync
-    # state for v17906/v18405.  Soldier's 01CF child contains the matching source-side remote-sync
-    # state at raw state 140 / owner bit 40.  Keep that state as the HUD source while restoring
-    # 004B's complete immediate child topology below.
-    body = next(item for item in instances if item.graph.index == 0x004B)
-    # 004B's creation Entry also writes v14676=true.
-    body.extra[14676] = Bool(True)
-
-    # 004B's Entry starts five sibling SubScripts together.  Full owner frames are authoritative:
-    # omitting network-created siblings destroys them, so running 01CF alone leaves its HUD source
-    # outside the topology in which the retail graph starts it.  Restore all five immediate
-    # descriptors and their SubScript links, but keep the four non-HUD children state-free.  This
-    # isolates topology from the Stack/BooleanSwitch lifecycle classes that have crashed when
-    # asserted bare.
-    child_specs = (
-        (0, 12, 0x01C7),
-        (3, 13, 0x01CF),
-        (5, 14, 0x02C5),
-        (10, 15, 0x0B8B),
-        (18, 16, 0x0C7D),
-    )
-    for parent_state, child_id, graph_index in child_specs:
-        body.active[parent_state] = subscript(child_id)
-        # Reconstruct the remote-sync fan-in that feeds 01CF's HUD bundle.  02C5 raw state
-        # 31 / owner bit 12 exports v478; 01CF raw 140 / owner bit 40 exports the aggregate.
-        # Both are STU_9D7BF987 remote-sync leaves, not lifecycle-sensitive control states.
-        if graph_index == 0x01CF:
-            active = {40: None}
-        elif graph_index == 0x02C5:
-            active = {12: None}
-        else:
-            active = {}
-        child = Instance(
-            child_id,
-            SOLDIER_CHILD_GRAPHS[graph_index],
-            parent=(body.index, parent_state),
-            active=active,
-        )
-        # 01C7's server-side creation Entry initializes v31296=1.
-        if graph_index == 0x01C7:
-            child.extra[31296] = Int(1)
-        instances.append(child)
-
-    # Live result: connecting 01CF's remote-sync state removes 20E4's red "Unavailable" ultimate
-    # marker.  That proves this is the real HUD feed.  01CF Entry initializes v7044/v8831=true;
-    # reproduce those two literal instance values next while leaving all other 01CF states off.
-    hud_source = next(item for item in instances if item.graph.index == 0x01CF)
-    # 01CF's compact 22-slot table places v8831 at slot 12 and v7044 at slot 13.  Sending these
-    # through extra() bypassed the descriptor-specific presence path used by the retail reader.
-    hud_source.presence.update({
-        12: Bool(True),  # v8831
-        13: Bool(True),  # v7044
-    })
-
-    # 0259 raw state 45 / owner bit 43 exports v1030 and v17858 into the same 01CF HUD
-    # bundle.  This completes every reachable upstream remote-sync producer of that bundle.
-    soldier_0259 = next(item for item in instances if item.graph.index == 0x0259)
-    soldier_0259.active[43] = None
-
-    # Do not assert 01CF state 32 / owner bit 22 here.  Live testing of the otherwise extracted
-    # 01CF -> 0E8F startup path crashes during Hero Selection, so this branch is lifecycle-dependent
-    # and is not safe to synthesize as an authoritative startup SubScript.
-
-    # The reconstructed 01CF Entry-20 presenter set (bits 0,1,2,4,28 plus v2580/v1900)
-    # still crashes.  Restore the only live-proven HUD path: 004B -> 01CF with remote-sync bit 40
-    # and the harmless Entry literals v7044/v8831.  Nested Stack/BooleanSwitch/UXPresenter states
-    # need class-specific network payload/lifecycle handling before they can be serialized safely.
-    return owner_full_frame(cmfd, instances, {})
-
-
-def soldier_body_frame(cmfd: int) -> BitWriter:
-    """Soldier: 76's complete initial owner frame.
-
-    Runtime instance ids are ours to assign.  Roots are 1..9, recursively-created SubScripts 10..17,
-    then the definition-level weapon manager and primary weapon are 18 and 19.  Parent descriptors
-    use the parent's STATE index; the active-state dictionary uses owner-frame bit indices.
-    """
-    roots = {graph.index: i + 1 for i, graph in enumerate(SOLDIER_BODY_GRAPHS)}
-    instances = [
-        Instance(
-            roots[graph.index],
-            graph,
-            active={bit: None for bit in SOLDIER_INITIAL_OWNER_BITS[graph.index]},
-        )
-        for graph in SOLDIER_BODY_GRAPHS
-    ]
-
-    child_ids: dict[int, int] = {}
-    next_id = 10
-    for parent_graph, parent_state, child_graph in SOLDIER_INITIAL_CHILDREN:
-        child_ids[child_graph] = next_id
-        next_id += 1
-
-    def instance_id(graph: int) -> int:
-        return roots.get(graph) or child_ids[graph]
-
-    # The SubScript state's serialized owner bit can differ from its graph state index.  Of Soldier's
-    # startup children only 01CF state 32 is shifted by filtered client-only states: state 32 -> bit 22.
-    child_owner_bit = {(0x01CF, 32): 22}
-    for parent_graph, parent_state, child_graph in SOLDIER_INITIAL_CHILDREN:
-        parent_id = instance_id(parent_graph)
-        child_id = child_ids[child_graph]
-        parent = next(item for item in instances if item.index == parent_id)
-        bit = child_owner_bit.get((parent_graph, parent_state), parent_state)
-        parent.active[bit] = subscript(child_id)
-        instances.append(
-            Instance(
-                child_id,
-                SOLDIER_CHILD_GRAPHS[child_graph],
-                parent=(parent_id, parent_state),
-                active={bit: None for bit in SOLDIER_INITIAL_CHILD_OWNER_BITS[child_graph]},
-            )
-        )
-
-    manager = Instance(
-        18,
-        SOLDIER_WEAPON_MANAGER,
-        active={bit: None for bit in SOLDIER_WEAPON_INITIAL_OWNER_BITS[0x0015]},
-    )
-    weapon = Instance(
-        19,
-        SOLDIER_PRIMARY_WEAPON,
-        active={bit: None for bit in SOLDIER_WEAPON_INITIAL_OWNER_BITS[0x0254]},
-    )
-    instances += [manager, weapon]
-
-    # First runtime probe: topology and state payloads only.  The arbitrary-id variable list below
-    # is intentionally deferred until the frame itself is accepted; unlike the compact sync presence
-    # table, its exact owner-frame semantics have not yet been proven in the client reader.
-    return owner_full_frame(cmfd, instances, {})
-
-
-def practice_mode_root_frame(cmfd: int, fire_hud_event: bool = False) -> BitWriter:
-    """Minimal Practice game-mode startup needed by the HUD lifecycle.
-
-    13C0's ordinary Entry starts raw state 5 (a SubScript to 0CBB), but raw state 5 is omitted from
-    the owner-state vector and therefore cannot be asserted on the wire.  Instantiate 0CBB as the
-    companion graph instead.  0CBB raw state 42 / owner bit 34 is a
-    STU_38EE1100 game-message state for 0717.025; 20E4 listens for that message before resolving
-    its local HUD entity/context and starting the main presenter.
-    """
-    # Raw 13C0 state 5 is an Entry-driven SubScript but is absent from the owner-state vector,
-    # so it has no network bit we can assert.  Keep 13C0 present and instantiate its 0CBB companion
-    # directly.  In 0CBB, raw state 42 is compact owner bit 34 and is the synchronized 0717 sender.
-    root = Instance(1, PRACTICE_MODE_ROOT)
-    events = Instance(
-        2,
-        PRACTICE_MODE_EVENTS,
-        # 0717 must transition on only after the player has a possessed body. 20E4's
-        # client-only listener resolves the possessed entity in its success Stack.
-        active={34: None} if fire_hud_event else {},
-    )
-    return owner_full_frame(cmfd, [root, events], {})
 
 
 def variables_frame(entity_vars: dict[int, Value]) -> BitWriter:
@@ -597,3 +273,691 @@ class Stream:
         update.stream = self
         update.resend = resend
         return update
+
+
+# --- Owner frames of a body the server runs (ow174/game/script) ----------------------------------
+#
+# Read in the client:
+# - A delta (first != 0) lists only what changed: instances (w_u16 index steps; a bit "gone", else a bit
+#   "full descriptor follows"), the entity variables, and per listed instance a mask over its m_syncVars
+#   entries plus an id list (0x7FF78991CA20), then a mask over all its m_states (0x7FF78991C620): a
+#   LogicalButton / WeaponVolley / Effect state gets X then StAc and its payload, every other state A and
+#   its payload when A = 1. Then, in an owner frame, the event lists (EIns), "more" and the frame's events.
+# - Masks (0x7FF789C630E0): up to 8 entries as plain bits, else one bit per group of 8 entries and the
+#   groups that have a bit set.
+# - A variable is a tagged value and its bindings (0x7FF78991D4F0): the states whose output the variable
+#   takes while they are active (the client's Stack entries), each with its instance, state index (the
+#   bound instance's m_statesBitCount bits), output slot and its priority.
+
+# What the client reads for each state class comes from its codec table (ow174/game/script/codecs.py,
+# data/statescript_codecs_174.json, read in the client code): whether it is an StEC class and its codec. The
+# writers below cover these codecs; tests/test_statescript_codecs.py reads every writer back with the table.
+STEC_CLASSES = codecs.stec_classes()
+WRITERS = {
+    "none", "switch", "stack", "anim", "chase", "button", "ability", "targets", "volley", "subscript",
+    "message", "send", "link", "hits", "flags13", "frames", "counter2", "pulser",
+}  # fmt: skip
+
+
+def family(cls: str) -> str:
+    """The payload writer of a state class: its codec in the client's table, "unknown" when we have no writer
+    for it (or the table has no verified layout)."""
+    item = codecs.codec(cls)
+    if item is None or not item.verified or item.codec not in WRITERS:
+        return "unknown"
+    return item.codec
+
+
+def sendable(cls: str, active: bool) -> bool:
+    """Whether a state of this class can go into an owner frame: one whose payload we cannot write only when
+    it is off and not an StEC class (an StEC state carries its payload when it is off too)."""
+    return family(cls) != "unknown" or (not active and cls not in STEC_CLASSES)
+
+
+def signed_u16(out: BitWriter, value: int) -> None:
+    """sign(1) then w_u16 (0x7FF789C63290): instance ids and instance steps."""
+    out.bit(value < 0)
+    out.w_u16(abs(value))
+
+
+def signed_var(out: BitWriter, value: int) -> None:
+    """sign(1) then w_var (0x7FF78AA836A0): the volley's times."""
+    out.bit(value < 0)
+    out.w_var(abs(value))
+
+
+def count(out: BitWriter, value: int) -> None:
+    """0 / 1 0 / 1 1 0 / 1 1 1 + w_u16 (0x7FF789C63400)."""
+    if value == 0:
+        out.bit(0)
+    elif value == 1:
+        out.bits(0b01, 2)
+    elif value == 2:
+        out.bits(0b011, 3)
+    else:
+        out.bits(0b111, 3)
+        out.w_u16(value)
+
+
+def mask(out: BitWriter, size: int, chosen: set[int]) -> None:
+    """A mask over `size` entries (0x7FF789C630E0)."""
+    if size <= 8:
+        for index in range(size):
+            out.bit(index in chosen)
+        return
+    groups = ((size - 1) >> 3) + 1
+    present = [any(index in chosen for index in range(8 * g, min(size, 8 * g + 8))) for g in range(groups)]
+    for flag in present:
+        out.bit(flag)
+    for g in range(groups):
+        if present[g]:
+            for index in range(8 * g, min(size, 8 * g + 8)):
+                out.bit(index in chosen)
+
+
+def _f32_bits(value: float) -> int:
+    return struct.unpack("<I", struct.pack("<f", float(value)))[0]
+
+
+def write_value(out: BitWriter, value) -> None:
+    """A tagged value (0x7FF789C67DE0), in the smallest tag that keeps its type."""
+    if value is None:
+        out.bits(15, 4)
+        out.bits(3, 3)
+    elif isinstance(value, bool):
+        out.bits(0, 4)
+        out.bit(value)
+    elif isinstance(value, int):
+        _write_int(out, value)
+    elif isinstance(value, float):
+        if value.is_integer() and 0 <= value < 16:
+            out.bits(5, 4)
+            out.bits(int(value), 4)
+        elif value.is_integer() and -128 <= value < 128:
+            out.bits(6, 4)
+            out.signed(int(value), 8)
+        else:
+            out.bits(8, 4)
+            out.bits(_f32_bits(value), 32)
+    elif isinstance(value, tuple):
+        out.bits(15, 4)
+        out.bits(6, 3)  # an array, its count only
+        out.w_u16(len(value))
+        out.bit(0)  # not keyed
+        if value:
+            out.bit(0)  # every element tagged
+            for item in value:
+                write_value(out, item)
+    elif isinstance(value, str):
+        out.bits(15, 4)
+        out.bits(2, 3)
+        for byte in value.encode("utf-8") + b"\0":
+            out.bits(byte, 8)
+    else:
+        _write_object(out, value)
+
+
+def _write_int(out: BitWriter, value: int) -> None:
+    if 0 <= value < 16:
+        out.bits(1, 4)
+        out.bits(value, 4)
+    elif -128 <= value < 128:
+        out.bits(2, 4)
+        out.signed(value, 8)
+    elif -32768 <= value < 32768:
+        out.bits(3, 4)
+        out.signed(value, 16)
+    else:
+        out.bits(4, 4)
+        out.signed(value, 32)
+
+
+def _write_object(out: BitWriter, value) -> None:
+    from ow174.game.script import expr
+
+    if isinstance(value, expr.Asset):
+        Asset(value.guid).write(out)
+    elif isinstance(value, expr.Entity):
+        out.bits(13, 4)
+        out.bit(value.id != 0)
+        if value.id:
+            out.bits(value.id & 0xFFFFFFFF, 32)
+    elif isinstance(value, expr.Handle):
+        out.bits(14, 4)
+        out.bits(value.kind & 7, 3)
+        out.w_var(value.instance)
+        out.w_u16(value.state)
+        out.w_u16(value.extra)
+    elif isinstance(value, expr.Vec3):
+        out.bits(12, 4)
+        parts = (value.x, value.y, value.z)
+        for part in parts:
+            out.bit(part != 0.0)
+        for part in parts:
+            if part != 0.0:
+                out.bits(_f32_bits(part), 32)
+    else:
+        raise ValueError(f"cannot send the value {value!r}")
+
+
+@dataclass(frozen=True)
+class Binding:
+    """A state whose output a variable takes while it is active: a Stack entry."""
+
+    instance: int
+    state: int  # m_states index
+    slot: int = 0
+    priority: float = 0.0
+    above: bool = True
+
+
+def write_bindings(out: BitWriter, bindings, own: int, graphs: dict) -> None:
+    """A variable's binding list. A state of the variable's own instance takes the short form (bit 0: the
+    client takes the instance from the variable's bag, 0x7FF78991D6DB); any other names its instance."""
+    count(out, len(bindings))
+    for item in bindings:
+        count(out, 0)  # no path
+        if item.instance == own:
+            out.bit(0)
+        else:
+            out.bit(1)
+            signed_u16(out, item.instance)
+        out.bits(item.state, graphs[item.instance].states_bits)
+        if item.slot:
+            out.bit(1)
+            out.w_var(item.slot)
+        else:
+            out.bit(0)
+        if item.priority == 0.0 and item.above:
+            out.bit(0)  # weight 0, above
+        else:
+            out.bit(1)
+            if float(item.priority).is_integer():
+                out.bit(1)
+                out.bit(item.priority < 0)
+                out.w_var(int(abs(item.priority)))
+            else:
+                out.bit(0)
+                out.bits(_f32_bits(item.priority), 32)
+            out.bit(item.above)
+        out.bit(0)  # flag A: no re-resolve every frame
+
+
+def write_var(out: BitWriter, value, bindings, own: int, graphs: dict) -> None:
+    write_value(out, value)
+    write_bindings(out, bindings, own, graphs)
+
+
+def write_payload(out: BitWriter, cls: str, payload: dict, frame_time: int, frame_ms: int) -> None:
+    """A state's payload in an owner frame (H = 1, a delta). `frame_time` is 16 * CmFD: the client takes
+    the volley's start and the chase's and ability's last tick relative to it."""
+    kind = family(cls)
+    if kind == "switch":
+        out.bit(payload.get("current", False))
+    elif kind == "stack":
+        out.bit(payload.get("top", False))
+        out.bit(payload.get("under", False))
+    elif kind == "button":
+        out.bits(payload.get("counter", 0) & 15, 4)
+    elif kind == "volley":
+        _write_volley(out, payload, frame_time)
+    elif kind == "anim":
+        out.bit(0)  # no linked state
+        out.bits(payload.get("counter", 0) & 7, 3)
+        out.bit(0)  # no animation time
+    elif kind == "chase":
+        _write_chase(out, payload, frame_time + frame_ms)
+    elif kind == "ability":
+        _write_ability(out, payload, frame_time + frame_ms)
+    elif kind == "targets":
+        out.bit(1)  # an empty target list
+        out.w_u16(0)
+    elif kind == "subscript":
+        out.w_u16(payload.get("child", 0))
+        out.bit(0)
+    elif kind == "message":
+        out.bit(0)  # no sender
+        out.bit(payload.get("stacked", False))
+    elif kind in ("send", "link"):
+        out.bit(0)
+    elif kind == "hits":
+        out.w_u16(0)  # no hits: the server does not detect them
+        out.bit(payload.get("flag", False))
+    elif kind == "flags13":
+        value = payload.get("value", 0)
+        out.bits(value & 63, 6)
+        out.bit(value >> 6 != 0)
+        if value >> 6:
+            out.bits(value >> 6 & 127, 7)
+    elif kind == "frames":
+        out.bits(payload.get("target", 0) & 0xFFFFFFFF, 32)
+    elif kind == "counter2":  # Effect: the activation counter & 3 (0x7FF789894540)
+        out.bits(payload.get("counter", 0) & 3, 2)
+    elif kind == "pulser":  # ClientOnlyPulser (0x7FF78990D760)
+        out.bit(payload.get("fresh", False))
+        out.bits(payload.get("count", 0) & 0xFF, 8)
+    elif kind == "unknown":
+        raise ValueError(f"no payload writer for {cls}")
+
+
+def _write_volley(out: BitWriter, payload: dict, frame_time: int) -> None:
+    """t1 = 16 * CmFD - start (the client sets start = 16 * CmFD - t1), then the time offset and re-volley
+    index (b), the volley counter (c, 1 when not sent) and the activation counter (q, 6 bits)."""
+    signed_var(out, frame_time - payload.get("start", frame_time))
+    offset = payload.get("offset", 0)
+    if offset:
+        out.bit(1)
+        signed_var(out, offset)
+        out.w_u16(payload.get("subindex", 0))
+    else:
+        out.bit(0)
+    volleys = payload.get("volleys", 1) & 0xFF
+    if volleys == 1:
+        out.bit(0)
+    else:
+        out.bit(1)
+        out.w_u16(volleys)
+    out.bits(payload.get("counter", 0) & 63, 6)
+
+
+def _write_chase(out: BitWriter, payload: dict, next_frame_time: int) -> None:
+    cur = payload.get("cur", 0.0)
+    vector = hasattr(cur, "x")
+    remaining = payload.get("remaining")
+    out.bit(vector)
+    out.bit(remaining is not None)
+    out.bit(payload.get("reached", False))
+    for part in (cur.x, cur.y, cur.z) if vector else (cur,):
+        out.bits(_f32_bits(part), 32)
+    if remaining is not None:
+        if remaining >= 1 << 16:
+            out.bit(1)
+            out.bits(remaining & 0xFFFFFFFF, 32)
+        else:
+            out.bit(0)
+            out.bits(max(0, remaining), 16)
+    _write_last(out, payload.get("last"), next_frame_time)
+
+
+def _write_ability(out: BitWriter, payload: dict, next_frame_time: int) -> None:
+    out.bits(payload.get("flags", 0) & 0xFF, 8)
+    out.bit(0)  # no linked state
+    cur = payload.get("cur", 0.0)
+    if cur <= 0:
+        out.bit(0)
+        return
+    out.bit(1)
+    out.bits(_f32_bits(cur), 32)
+    rate = payload.get("rate", 1.0)
+    out.bit(rate != 1.0)
+    if rate != 1.0:
+        out.bits(_f32_bits(rate), 32)
+    out.var_b(max(0, next_frame_time - payload.get("last", next_frame_time)))
+
+
+def _write_last(out: BitWriter, last: int | None, next_frame_time: int) -> None:
+    """A last tick as t, with lastTick = 16 * (CmFD + 1) - t on the client (0x7FF78AAA8400)."""
+    if last is None or next_frame_time - last < 0:
+        out.bit(0)
+        return
+    out.bit(1)
+    out.var_b(next_frame_time - last)
+
+
+@dataclass
+class StateWire:
+    cls: str
+    active: bool
+    payload: dict = field(default_factory=dict)
+
+
+@dataclass
+class EventWire:
+    time: int  # absolute ms
+    state: int  # m_states index
+    finish: bool = False  # a finish request, else a timer
+    param: int = 1
+
+
+@dataclass
+class InstanceWire:
+    """One instance in a body frame. In a delta only what changed is set; `events` None leaves the client's
+    queue of that instance alone, a list replaces its networked events."""
+
+    id: int
+    graph: object  # ow174.game.script.graph.Graph
+    parent: tuple[int, int] | None = None
+    descriptor: bool = False
+    gone: bool = False
+    vars: dict = field(default_factory=dict)  # var id -> (value, bindings)
+    states: dict[int, StateWire] = field(default_factory=dict)
+    events: list[EventWire] | None = None
+
+    @property
+    def listed(self) -> bool:
+        return self.gone or self.descriptor or bool(self.vars) or bool(self.states)
+
+
+def _descriptor_of(out: BitWriter, item: InstanceWire) -> None:
+    out.bits(item.graph.index, 16)
+    out.bit(0)  # this entity
+    out.bit(0)  # flag
+    if item.parent is None:
+        out.bit(0)
+    else:
+        out.bit(1)
+        out.w_var(item.parent[0])
+        out.w_var(item.parent[1])
+    out.bit(0)  # no references
+
+
+def _entity_vars(out: BitWriter, variables: dict, graphs: dict) -> None:
+    if not variables:
+        out.bit(0)
+        return
+    out.bit(1)
+    for var in sorted(variables):
+        value, bindings = variables[var]
+        out.w_var(var)
+        write_var(out, value, bindings, 0, graphs)
+    out.w_var(0)
+
+
+def _sync_slots(item: InstanceWire) -> dict[int, int]:
+    """m_syncVars entry -> var id for the instance variables this frame sends through the list."""
+    slots: dict[int, int] = {}
+    for entry in item.graph.sync_vars:
+        wanted = entry.var is not None and entry.scope == 0 and entry.var in item.vars
+        if wanted and entry.var not in slots.values():
+            slots[entry.index] = entry.var
+    return slots
+
+
+def _instance_vars(out: BitWriter, item: InstanceWire, graphs: dict, presence_only: bool) -> None:
+    """The per-instance variables: the m_syncVars entries (a presence bit per instance entry with an id in a
+    full frame, a mask over the whole list in a delta), then the other ids."""
+    slots = _sync_slots(item)
+    if presence_only:
+        for entry in item.graph.presence_vars():
+            present = slots.get(entry.index) == entry.var
+            out.bit(present)
+            if present:
+                write_var(out, *item.vars[entry.var], item.id, graphs)
+    else:
+        mask(out, len(item.graph.sync_vars), set(slots))
+        for index in sorted(slots):
+            write_var(out, *item.vars[slots[index]], item.id, graphs)
+    extra = sorted(var for var in item.vars if var not in slots.values())
+    if not extra:
+        out.bit(0)
+        return
+    out.bit(1)
+    for var in extra:
+        out.w_var(var)
+        write_var(out, *item.vars[var], item.id, graphs)
+    out.w_var(0)
+
+
+def _instance_states(out: BitWriter, item: InstanceWire, frame_time: int, frame_ms: int) -> None:
+    nodes = item.graph.states
+    mask(out, len(nodes), set(item.states))
+    for index in sorted(item.states):
+        state = item.states[index]
+        node = nodes[index]
+        if node is None or node.client_only or node.server_only:
+            raise ValueError(f"instance {item.id} st{index} is not a networked state")
+        if state.cls in STEC_CLASSES:
+            out.bit(1)  # X
+            out.bit(state.active)
+            write_payload(out, state.cls, state.payload, frame_time, frame_ms)
+        else:
+            out.bit(state.active)
+            if state.active:
+                write_payload(out, state.cls, state.payload, frame_time, frame_ms)
+
+
+def write_events(out: BitWriter, events: list[EventWire], frame_time: int, states_bits: int) -> None:
+    """One instance's owner event list (0x7FF78991BA30): 2-bit codes, times from 16 * CmFD on, each the
+    step from the one before."""
+    last = frame_time
+    for event in sorted(events, key=lambda item: item.time):
+        if event.finish:
+            out.bits(2, 2)
+        elif event.param == 1:
+            out.bits(0, 2)
+        else:
+            out.bits(1, 2)
+            out.bit(event.param == 0)
+            if event.param:
+                out.w_u16(event.param)
+        out.bits(event.state, states_bits)
+        delta = event.time - last
+        out.bit(delta == 0)
+        if delta:
+            out.bit(delta > 0)
+            out.w_var(abs(delta))
+        last = event.time
+    out.bits(3, 2)
+
+
+def owner_delta(
+    cmfd: int,
+    correction: bool,
+    instances: list[InstanceWire],
+    entity_vars: dict,
+    graphs: dict,
+    frame_ms: int = 16,
+) -> BitWriter:
+    """An owner (H = 1) delta frame of a body. `graphs` maps every instance id of the entity to its graph
+    (a binding names the bound instance's state with that graph's width)."""
+    if cmfd < 1:
+        raise ValueError("CmFD 0 is always stale")
+    frame_time = cmfd * frame_ms
+    body = BitWriter()
+    ordered = sorted(instances, key=lambda item: item.id)
+    last = 0
+    for item in ordered:
+        if not item.listed:
+            continue
+        body.w_u16(item.id - last)
+        last = item.id
+        body.bit(item.gone)
+        if not item.gone:
+            body.bit(item.descriptor)
+            if item.descriptor:
+                _descriptor_of(body, item)
+    body.w_u16(0)
+    _entity_vars(body, entity_vars, graphs)
+    for item in ordered:
+        if item.listed and not item.gone:
+            _instance_vars(body, item, graphs, presence_only=False)
+            _instance_states(body, item, frame_time, frame_ms)
+    lists = [item for item in ordered if item.events is not None and not item.gone]
+    body.bit(bool(lists))
+    if lists:
+        last = 0
+        for item in lists:
+            signed_u16(body, item.id - last)
+            last = item.id
+            write_events(body, item.events, frame_time, item.graph.states_bits)
+        signed_u16(body, 0)
+    out = BitWriter()
+    out.bit(0)  # lead
+    out.bit(1)  # H
+    out.bit(correction)
+    out.w_var(cmfd)
+    out.w_var(body.count)  # LBSS: the body up to the "more" bit
+    out.append(body)
+    out.bit(0)  # no more sub-frames
+    out.bits(0, 2)  # no frame events
+    return out
+
+
+def body_full_frame(instances: list[InstanceWire], entity_vars: dict, graphs: dict) -> BitWriter:
+    """A plain (H = 0) full frame of a body: every instance with its descriptor and variables, and every
+    remote-synced state off (X = 0). The client rebinds the instances it built itself (same index, graph,
+    no parent), makes the others, and destroys the network instances the frame does not list."""
+    out = BitWriter()
+    out.bit(0)  # lead
+    out.bit(0)  # H
+    last = 0
+    ordered = sorted(instances, key=lambda item: item.id)
+    for item in ordered:
+        out.w_u16(item.id - last)
+        last = item.id
+        _descriptor_of(out, item)
+    out.w_u16(0)
+    _entity_vars(out, entity_vars, graphs)
+    for item in ordered:
+        _instance_vars(out, item, graphs, presence_only=True)
+        for _ in item.graph.remote_states():
+            out.bit(0)  # X = 0: off
+    out.bits(0, 2)  # no frame events
+    return out
+
+
+# --- Plain (H = 0) frames with states: what every other client gets of an entity (observers.py, the Biotic
+# Field entity in projectiles.py) ------------------------------------------------------------------------
+#
+# Read in the client (0x7FF78991BE30 / 0x7FF78991C620): an H = 0 frame
+# walks the graph's m_remoteSyncNodes. In a full frame each state that costs bits (a networked state) has X:
+# 0 aborts it, 1 then A (an StEC class: Y, then StAc) and, when on, its payload with H = 0 and full = 1. A
+# delta has a mask over the whole raw list and per set bit A (StEC: X, then StAc) and the payload with full
+# = 0. After a full frame the client aborts every active state of the instance that is neither remote-synced
+# nor client-only. Payloads: the codec table's layouts with H = 0 (codecs.write).
+
+
+def remote_fields(cls: str, payload: dict) -> dict:
+    """A state's payload (the VM's values, as write_payload takes them) as the codec layout's fields of an
+    H = 0 frame. Times are relative to a CmFD the frame does not have, so none is sent (unverified)."""
+    kind = family(cls)
+    get = payload.get
+    if kind == "volley":
+        volleys = get("volleys", 1) & 0xFF
+        return {"has_volleys": volleys != 1, "volleys": volleys, "counter": get("counter", 0) & 63}
+    if kind == "anim":
+        return {"counter": get("counter", 0) & 7, "has_time": 0}
+    if kind == "chase":
+        cur = get("cur", 0.0)
+        vector = hasattr(cur, "x")
+        remaining = get("remaining")
+        fields = {"vector": vector, "reached": get("reached", False), "has_remaining": remaining is not None}
+        if vector:
+            fields.update(x=cur.x, y=cur.y, z=cur.z)
+        else:
+            fields["x"] = cur
+        if remaining is not None:
+            fields.update(big=remaining >= 1 << 16, remaining=max(0, remaining) & 0xFFFFFFFF)
+        return fields
+    if kind == "ability":
+        cur = get("cur", 0.0)
+        fields = {"flags": get("flags", 0) & 0xFF, "has_cur": cur > 0}
+        if cur > 0:
+            rate = get("rate", 1.0)
+            fields.update(cur=cur, has_rate=rate != 1.0, rate=rate, t=0)
+        return fields
+    if kind == "switch":
+        return {"current": get("current", False)}
+    if kind in ("button", "counter2"):
+        return {"counter": get("counter", 0)}
+    if kind == "message":
+        return {"stacked": get("stacked", False)}
+    if kind == "pulser":
+        return {"fresh": get("fresh", False), "count": get("count", 0) & 0xFF}
+    if kind == "hits":
+        return {"n": 0, "flag": get("flag", False)}
+    if kind == "flags13":
+        value = get("value", 0)
+        return {"value": value}
+    if kind in ("none", "stack", "send", "link", "subscript", "targets", "frames"):
+        return dict(payload) if kind == "frames" else {}
+    raise ValueError(f"no H=0 payload for {cls}")
+
+
+def write_remote_payload(out: BitWriter, cls: str, payload: dict, full: bool) -> None:
+    item = codecs.codec(cls)
+    if item is None or not item.verified:
+        raise ValueError(f"no verified codec for {cls}")
+    codecs.write(out, item.layout, remote_fields(cls, payload), owner=False, full=full, value=write_value)
+
+
+def _remote_state(out: BitWriter, state: "StateWire | None", full: bool) -> None:
+    """One remote-synced state: in a full frame X, then Y for an StEC class (off goes as X = 0); in a delta X
+    for an StEC class; then StAc (StEC) or A and the payload."""
+    stec = state is not None and state.cls in STEC_CLASSES
+    if full:
+        if state is None or not (state.active or stec):
+            out.bit(0)  # X = 0: off
+            return
+        out.bit(1)  # X
+        if stec:
+            out.bit(1)  # Y
+    elif stec:
+        out.bit(1)  # X
+    if stec:
+        out.bit(state.active)  # StAc
+        write_remote_payload(out, state.cls, state.payload, full)
+    else:
+        out.bit(state.active)  # A
+        if state.active:
+            write_remote_payload(out, state.cls, state.payload, full)
+
+
+def remote_full_frame(instances: list[InstanceWire], entity_vars: dict, graphs: dict) -> BitWriter:
+    """A plain (H = 0) full frame with the remote-synced states that are on (item.states by m_states index):
+    every instance with its descriptor and variables, then per instance its states in m_remoteSyncNodes
+    order. The client rebinds its own instances, makes the others and destroys the network instances the
+    frame does not list."""
+    out = BitWriter()
+    out.bit(0)  # lead
+    out.bit(0)  # H
+    last = 0
+    ordered = sorted(instances, key=lambda item: item.id)
+    for item in ordered:
+        out.w_u16(item.id - last)
+        last = item.id
+        _descriptor_of(out, item)
+    out.w_u16(0)
+    _entity_vars(out, entity_vars, graphs)
+    for item in ordered:
+        _instance_vars(out, item, graphs, presence_only=True)
+        for node in item.graph.remote_states():
+            _remote_state(out, item.states.get(node.state), full=True)
+    out.bits(0, 2)  # no frame events
+    return out
+
+
+def remote_delta(instances: list[InstanceWire], entity_vars: dict, graphs: dict) -> BitWriter:
+    """A plain (H = 0) delta: the instances that changed, the variables, and per listed instance a mask over
+    its raw m_remoteSyncNodes list with the states that changed (item.states by m_states index)."""
+    out = BitWriter()
+    out.bit(0)  # lead
+    out.bit(0)  # H
+    ordered = sorted(instances, key=lambda item: item.id)
+    last = 0
+    for item in ordered:
+        if not item.listed:
+            continue
+        out.w_u16(item.id - last)
+        last = item.id
+        out.bit(item.gone)
+        if not item.gone:
+            out.bit(item.descriptor)
+            if item.descriptor:
+                _descriptor_of(out, item)
+    out.w_u16(0)
+    _entity_vars(out, entity_vars, graphs)
+    for item in ordered:
+        if not item.listed or item.gone:
+            continue
+        _instance_vars(out, item, graphs, presence_only=False)
+        nodes = item.graph.remote_nodes
+        chosen = {}
+        for index, node in enumerate(nodes):
+            if node is not None and node.state in item.states and node in item.graph.remote_states():
+                chosen[index] = item.states[node.state]
+        mask(out, len(nodes), set(chosen))
+        for index in sorted(chosen):
+            _remote_state(out, chosen[index], full=False)
+    out.bits(0, 2)  # no frame events
+    return out

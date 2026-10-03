@@ -363,6 +363,29 @@ import {api, selectAccount} from './dashboard-api.mjs';
   async function setDefaultAccount(name) {
     try { toast((await api('/api/default_account', {name})).message); await refreshState(); } catch (error) { toast(error.message, true); }
   }
+  // Each queue card's own matchmaking settings; a row being edited keeps what was typed.
+  function renderModes(modes) {
+    const list = $('#modes-list');
+    if (!list || list.contains(document.activeElement)) return;
+    const rows = [];
+    for (const mode of modes) {
+      const row = node('tr'); row.append(node('td', '', mode.name), node('td', '', mode.teams));
+      const players = node('input', 'mode-players'); players.type = 'number'; players.min = '0'; players.max = '12';
+      players.value = mode.players_to_start; players.setAttribute('aria-label', `${mode.name}: players to start`);
+      const fill = node('input'); fill.type = 'checkbox'; fill.checked = mode.fill_running; fill.disabled = mode.competitive;
+      fill.setAttribute('aria-label', `${mode.name}: join games in progress`);
+      if (mode.competitive) fill.title = 'Competitive matches never take players once they are on.';
+      const save = node('button', 'button secondary small', 'Save'); save.type = 'button';
+      save.addEventListener('click', async () => {
+        showError('#modes-error', '');
+        try { toast((await api('/api/mode_settings', {card: mode.card, players_to_start: players.value, fill_running: fill.checked})).message); await refreshState(); }
+        catch (error) { showError('#modes-error', error.message); }
+      });
+      for (const control of [players, fill, save]) { const cell = node('td'); cell.append(control); row.append(cell); }
+      rows.push(row);
+    }
+    list.replaceChildren(...rows);
+  }
   function renderSessions() {
     const server = state.server;
     setText('#sidebar-address', `${server.host}:${server.port}`);
@@ -380,6 +403,7 @@ import {api, selectAccount} from './dashboard-api.mjs';
       mapSelect.replaceChildren(...options);
     }
     if (mapSelect && document.activeElement !== mapSelect) mapSelect.value = server.forced_map || 'random';
+    renderModes(server.modes || []);
     const accounts = $('#sessions-accounts'); accounts.replaceChildren();
     for (const item of state.accounts || []) {
       const row = node('tr'); row.append(node('td', '', item.name));

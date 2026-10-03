@@ -1,0 +1,473 @@
+{
+ "_source": "Build 1.74.0.0.104319: the content manifest's keys of each map's collision chunk (0x0DD00011 << 32 | map index), read with TACTLib. ekey = encoding key (local index), ckey = MD5 of the chunk, size = its bytes.",
+ "0x080000000000005B": {
+  "ckey": "6a293f36c700f0a9ad335a07c0ba5991",
+  "ekey": "3e32bbd55635994dac825918b86ac1ca",
+  "size": 25321488
+ },
+ "0x08000000000000D4": {
+  "ckey": "31e97b5d891930b88bbb3df668171e6b",
+  "ekey": "3434310aff2adb7fee9b2e80843e2b6f",
+  "size": 51352176
+ },
+ "0x0800000000000165": {
+  "ckey": "f5bfee10a2b52bc00643d117336c3511",
+  "ekey": "a5866bc65e1708e819eb500ab1d106f8",
+  "size": 34662832
+ },
+ "0x0800000000000184": {
+  "ckey": "de7a36c2378368786d8a241506b90ed4",
+  "ekey": "52a2d3f36bfc0863879a5a0c95a4cbb1",
+  "size": 58971536
+ },
+ "0x08000000000001D4": {
+  "ckey": "b4f4bebec5f8fe24d892b82358a599d2",
+  "ekey": "e1e99b03a2026932b4b5e0806b571fee",
+  "size": 26995376
+ },
+ "0x08000000000001DB": {
+  "ckey": "eb1500d90a4f8ebdb3e542c8ece93f8f",
+  "ekey": "6a366cf57417c143bd0cffd886d3fd04",
+  "size": 32013712
+ },
+ "0x08000000000002AF": {
+  "ckey": "711157e2cb5424efab2c6767199c03f4",
+  "ekey": "bf73fee8a868792ce9633349e776e0ea",
+  "size": 45302304
+ },
+ "0x08000000000002C3": {
+  "ckey": "bdefe03043c5ce3a48fed06aef0cca1f",
+  "ekey": "0def40d0a72a603cf661a4dba03538d2",
+  "size": 56489792
+ },
+ "0x08000000000004B7": {
+  "ckey": "53463e6a63ce2c1de57abc3d5d8ba244",
+  "ekey": "594dde0e2595d9f52d625c7b37c8fe23",
+  "size": 57477520
+ },
+ "0x08000000000005BB": {
+  "ckey": "31132c416fedce7532aa212c4e99658a",
+  "ekey": "8097560c15e339d308f2fd75ee05b914",
+  "size": 50206928
+ },
+ "0x0800000000000661": {
+  "ckey": "03daee9364ec5392461d7e669a8acdc1",
+  "ekey": "147505d3ef532c5186938646efccefaf",
+  "size": 14052192
+ },
+ "0x0800000000000662": {
+  "ckey": "088ebe0ed20d9c8c90f8b0c07c372d7b",
+  "ekey": "e88d01e52bb2909eef3c27a52694609f",
+  "size": 44001680
+ },
+ "0x080000000000066D": {
+  "ckey": "8ce515a84eec25146768639cfc0fedb7",
+  "ekey": "05ab781f892da4b86dfda8498688d367",
+  "size": 61679280
+ },
+ "0x0800000000000688": {
+  "ckey": "9bfaddea0db3f1253453de176e4670b7",
+  "ekey": "347fd8569af9178d096cf663ff9e85f3",
+  "size": 19880560
+ },
+ "0x080000000000068D": {
+  "ckey": "45aa95351d2f00842b55c8a150dd1ea4",
+  "ekey": "e0c87e5912fdd5e280706cdce7e03b3c",
+  "size": 66500960
+ },
+ "0x080000000000069E": {
+  "ckey": "d8aff16721a06aa4edbacf60053a431f",
+  "ekey": "e56f52962e8a0c1a4cc71f974fbfc237",
+  "size": 45176016
+ },
+ "0x08000000000006AB": {
+  "ckey": "51f5aecbeb3dca1f931e76f7414871fd",
+  "ekey": "aaf9092f4b9ae079dde164ec6138126e",
+  "size": 45913392
+ },
+ "0x08000000000006B1": {
+  "ckey": "bdc3474b91d75a9ed50933bfb725d76e",
+  "ekey": "69c8f0d15203818685e212c9cc9153a3",
+  "size": 54184224
+ },
+ "0x08000000000006B3": {
+  "ckey": "802b3e87c70debcdbb27b38ba49012a4",
+  "ekey": "2d26e5e512cc99257f5b992c2653c63e",
+  "size": 425312
+ },
+ "0x08000000000006B5": {
+  "ckey": "cc02d531265fee4f8a7265c8956ccbd9",
+  "ekey": "a9f6ed4f6a682ad6092e03703dc98884",
+  "size": 35017792
+ },
+ "0x08000000000006B7": {
+  "ckey": "b0573d01fea35105f2b0ceb2c174c075",
+  "ekey": "cc2fac48fc5d5dc25b7e489499fa726a",
+  "size": 44017168
+ },
+ "0x08000000000006C9": {
+  "ckey": "88c0d7f96782e9b37f4d63485ce8c410",
+  "ekey": "e0cf94ab7ee34341eca60ca9790936bb",
+  "size": 23097360
+ },
+ "0x08000000000006D1": {
+  "ckey": "f265b0758b155c766c10c54e194fc1e4",
+  "ekey": "f45e0d3a469fd29a60986d0fdc49d670",
+  "size": 28811872
+ },
+ "0x08000000000006D3": {
+  "ckey": "ad09a4c48acd1636a60c8d0fa60911b4",
+  "ekey": "59fc50e4e27b5038c7ec208c1a6cef41",
+  "size": 22162976
+ },
+ "0x08000000000006FE": {
+  "ckey": "544cdbaecc473d6e9598ee985b0b3232",
+  "ekey": "8d5c3a2ceedbe922dd7720de21a2f5d5",
+  "size": 45265440
+ },
+ "0x0800000000000705": {
+  "ckey": "bfef7a53a3acbb1efc593ae817c9200a",
+  "ekey": "043f0d9caa7ae7fa1cfd08b80815edba",
+  "size": 17596160
+ },
+ "0x080000000000070C": {
+  "ckey": "67c3625438fb2be90c0e4bb98eaf1516",
+  "ekey": "f65d9d2c9deef5bebf9da792187603b9",
+  "size": 23128928
+ },
+ "0x080000000000070D": {
+  "ckey": "1bd896ec024b1fa8effff0ba640659f4",
+  "ekey": "66b5af58468f9650728f0de53e10ce6a",
+  "size": 28707376
+ },
+ "0x0800000000000711": {
+  "ckey": "7d4cb817c4e16daecf27b031257e5392",
+  "ekey": "a4df5a25acd5178a981522af9f113f12",
+  "size": 16637456
+ },
+ "0x0800000000000712": {
+  "ckey": "0eba5383c871e7f02e920d20e7eddefd",
+  "ekey": "218f3ad2957563aff6e6155c1f40b710",
+  "size": 23231904
+ },
+ "0x0800000000000717": {
+  "ckey": "e19abc4c09878a4d227a51906d9fe88e",
+  "ekey": "edcd5cc203024869edf1485bd57b388c",
+  "size": 20085840
+ },
+ "0x080000000000071A": {
+  "ckey": "974114bc337e6f1e8a1a6c4e1c6c2f88",
+  "ekey": "d8bd0d44d9ad27f53656849105a42eda",
+  "size": 16496208
+ },
+ "0x080000000000071C": {
+  "ckey": "7901585cf577887df96c606b57a34b75",
+  "ekey": "0ccea2139beb62dc2db77bcb890c2d96",
+  "size": 19021200
+ },
+ "0x0800000000000736": {
+  "ckey": "ce14c83240d66510cca33830c300b49b",
+  "ekey": "e8a77bb8bb2d818a0b49ab74b1edd3b7",
+  "size": 31834976
+ },
+ "0x0800000000000738": {
+  "ckey": "93af37ab913de6fd6a43c8f408e66096",
+  "ekey": "f9f82a2cf892c4520013a8566ba46b8b",
+  "size": 28756048
+ },
+ "0x080000000000073A": {
+  "ckey": "73c3d02c8daee4557001c15655d8826a",
+  "ekey": "e870fb437807bc25104cebdd66e82866",
+  "size": 26968416
+ },
+ "0x080000000000073D": {
+  "ckey": "7a23ef52c488fdb7d34118263354b972",
+  "ekey": "cb67d18194c0dac93ff625f98190b9bb",
+  "size": 20876320
+ },
+ "0x080000000000073E": {
+  "ckey": "b326b6f88333a4d601edff09ef28b537",
+  "ekey": "761f39b4b8043af4be5d376877e4c844",
+  "size": 29690480
+ },
+ "0x0800000000000744": {
+  "ckey": "5220afdab392f9d92398bb26d1082a8c",
+  "ekey": "5c5c4d432256feb93a2d4e7b0c0fe4fe",
+  "size": 16481584
+ },
+ "0x0800000000000745": {
+  "ckey": "f022c3bcabc0a5f0b340092e9000483d",
+  "ekey": "620cce7e4a6e9ea43f752878e7302fd0",
+  "size": 16651648
+ },
+ "0x0800000000000746": {
+  "ckey": "8f6f37d992a41cd43572324367e04951",
+  "ekey": "902d7ebacc94c5603d227d31271319d3",
+  "size": 23096016
+ },
+ "0x080000000000074A": {
+  "ckey": "366b78dce805df3e349c8fcebcb06344",
+  "ekey": "13676b41bcd6af2e1447eda20035d34c",
+  "size": 17040544
+ },
+ "0x080000000000074C": {
+  "ckey": "e394f5d5a94238fafe47dc7a75f49f2e",
+  "ekey": "88a67a0297ce5b555498ca87cfe83c5f",
+  "size": 15611408
+ },
+ "0x080000000000074D": {
+  "ckey": "af8c5debc01c7fade63643daf8cabfaa",
+  "ekey": "e885a8ac9049b9586acf2aa777131fec",
+  "size": 12753424
+ },
+ "0x0800000000000751": {
+  "ckey": "b4f4bebec5f8fe24d892b82358a599d2",
+  "ekey": "e1e99b03a2026932b4b5e0806b571fee",
+  "size": 26995376
+ },
+ "0x0800000000000756": {
+  "ckey": "139b8f1a893106839ff5abe2f26d399e",
+  "ekey": "556c953ba7376d7044cca3fdff405e52",
+  "size": 66470560
+ },
+ "0x080000000000075E": {
+  "ckey": "3bf0a820ab340a482d5e97c98d50ab6a",
+  "ekey": "801c63c7a35540c8f85845e740356ee2",
+  "size": 48322128
+ },
+ "0x0800000000000793": {
+  "ckey": "099f86a0ef57c4b48f2a29a0b1f6937b",
+  "ekey": "946520a00930a562d262bd83b1c49fc8",
+  "size": 209984
+ },
+ "0x080000000000079F": {
+  "ckey": "4dc183278207bcd1910ef923f3767423",
+  "ekey": "316f23fd2c1a0ee863943680bbe34db7",
+  "size": 56357712
+ },
+ "0x08000000000007A1": {
+  "ckey": "b47dc7f9373b4f68ca04d95b3ab3c451",
+  "ekey": "74f114ccdfcb4f92278875d986e64e15",
+  "size": 18728864
+ },
+ "0x08000000000007A4": {
+  "ckey": "2c11036966b9e6cffdb3d0e27fd35676",
+  "ekey": "352e37b9de491f621edd6c7f8c7837b2",
+  "size": 11340304
+ },
+ "0x08000000000007E2": {
+  "ckey": "1c99ee7060c42b6278a28d2f7452f6fe",
+  "ekey": "2476e558158d7f187cb29209ae4fe9d5",
+  "size": 55389632
+ },
+ "0x08000000000007F4": {
+  "ckey": "4b5a1659426c620c1ec93b7608159d37",
+  "ekey": "e0039744fe011aadb6f5d125b8649705",
+  "size": 59661632
+ },
+ "0x08000000000007F7": {
+  "ckey": "f98e652b10e1f6248942a313e0e6dfdf",
+  "ekey": "7685b72625d762308e3abb17b7515137",
+  "size": 24078864
+ },
+ "0x08000000000007FD": {
+  "ckey": "e644179ac4bd2e9c9819a27db9a9cb27",
+  "ekey": "e32370931dcd9146301519205134b46b",
+  "size": 26345376
+ },
+ "0x0800000000000801": {
+  "ckey": "fd80eec5263d838819e9b48a5bd17a4b",
+  "ekey": "4e121c631f30925265962dc5bf944bc7",
+  "size": 44651056
+ },
+ "0x0800000000000836": {
+  "ckey": "14d9224bd2a883b72286b59f9282c939",
+  "ekey": "b6de32a10802311abacdc8f0bca2446c",
+  "size": 11613696
+ },
+ "0x080000000000085F": {
+  "ckey": "79fab987090d8f17b7914c2518782bce",
+  "ekey": "896bcbf4f4198b334ea7e3669e397f08",
+  "size": 18553008
+ },
+ "0x0800000000000871": {
+  "ckey": "9977dcdce14a019535ddcfedf4fd4363",
+  "ekey": "c2a4200867e808aec445c27682e13178",
+  "size": 47674448
+ },
+ "0x0800000000000890": {
+  "ckey": "e499b974fd19536a97e18ffd2e376aaa",
+  "ekey": "8a0ef092d63c782a234eb23469210474",
+  "size": 24941328
+ },
+ "0x0800000000000891": {
+  "ckey": "2eabf7378add1e67c0c2d69b8317eef7",
+  "ekey": "bf802acfcec6308caaba5d61cf241e77",
+  "size": 45247744
+ },
+ "0x08000000000008B4": {
+  "ckey": "1a3a7ef42d41eba4f6758a6ff98e8786",
+  "ekey": "6055227b9c75f709ef4c9834dd21cf85",
+  "size": 33949008
+ },
+ "0x08000000000008BE": {
+  "ckey": "5b816bac3004f6d87b47bf116a7c2717",
+  "ekey": "02254dc4bb45087080f6d4872e8d18d4",
+  "size": 33805232
+ },
+ "0x080000000000092A": {
+  "ckey": "1db504d79816f10b9bb8d2fab2724f93",
+  "ekey": "7fca252fb1e6cfb4a970ae03fe62e2ab",
+  "size": 1468096
+ },
+ "0x0800000000000A14": {
+  "ckey": "15dcad1ed6849fa8758e811166de8107",
+  "ekey": "78f7f35f790ac98eea727c357cba997d",
+  "size": 1468096
+ },
+ "0x0800000000000A44": {
+  "ckey": "b44667a440fa0c4451f5aa032f1a0b6e",
+  "ekey": "10b3b981696c56765edd391fa2cd705c",
+  "size": 52605568
+ },
+ "0x0800000000000A5A": {
+  "ckey": "a4a5190733dc0ca0d56c52237eda18da",
+  "ekey": "191f5e759fe19067f2b3b3e275bf5cf8",
+  "size": 9216336
+ },
+ "0x0800000000000A5B": {
+  "ckey": "757582f4a31a2ced54cdad83fb19dd8e",
+  "ekey": "9710c7ef0b50930cb208fe0bfeabb9f8",
+  "size": 50499920
+ },
+ "0x0800000000000A7A": {
+  "ckey": "58facb81a498ebc6ee09dae45521da52",
+  "ekey": "b707226293a6ac166c99cfa546d7cb25",
+  "size": 18773104
+ },
+ "0x0800000000000A84": {
+  "ckey": "1fb1e7a5cec78217b78168f8c81a41d6",
+  "ekey": "28229bf506805500c70da65869f8a0da",
+  "size": 19684560
+ },
+ "0x0800000000000A86": {
+  "ckey": "058a470adf4762e9971a8ab40d3b0966",
+  "ekey": "4bb20780bf46b95eaaf9648056ff77d4",
+  "size": 21433504
+ },
+ "0x0800000000000A9E": {
+  "ckey": "8a32534e6b4c00c248e1c7656a866edf",
+  "ekey": "ff5a5f5f2899c40d276e828a483cf4df",
+  "size": 11100192
+ },
+ "0x0800000000000AF0": {
+  "ckey": "9208c43b1e6d50f7e4f3c5692917ee99",
+  "ekey": "3d28d27ee91de9f91a4b95a3585e5daa",
+  "size": 17032736
+ },
+ "0x0800000000000AFE": {
+  "ckey": "cb32de4afc63ce322bea4d67ad3f6c7f",
+  "ekey": "3314e2999997780f3cd8ae4099dda430",
+  "size": 47868592
+ },
+ "0x0800000000000B55": {
+  "ckey": "3992014accf26df91d72c988f3d37a38",
+  "ekey": "dde4ae1379e3fec0310b4a58e938d5be",
+  "size": 20341168
+ },
+ "0x0800000000000B56": {
+  "ckey": "84ef22f78c82243ded3d40e3ec9e6382",
+  "ekey": "2dd3da58e09998e4d151c1d7667fa7ba",
+  "size": 19888112
+ },
+ "0x0800000000000C04": {
+  "ckey": "3d201d93dbfa1994d8643fe1a21b0ad6",
+  "ekey": "6c73c140a6896044aa8d4b33a875e4c9",
+  "size": 27146288
+ },
+ "0x0800000000000C40": {
+  "ckey": "e93106f85e38f8d09575dcd6b06a47ac",
+  "ekey": "febbe167edb4c45206deab8c79a9eebb",
+  "size": 2637600
+ },
+ "0x0800000000000C44": {
+  "ckey": "a2c67e4a9c83f7eadc6f1df6efcb3af8",
+  "ekey": "122a42d56828261b449f8cc10e6b7eee",
+  "size": 22368
+ },
+ "0x0800000000000C48": {
+  "ckey": "39670253973eb1c35c2b8d7df3dd834d",
+  "ekey": "12a994ff652461a3f761ed4b8c01c881",
+  "size": 90176
+ },
+ "0x0800000000000C61": {
+  "ckey": "1f0d8a614d8fb6f5012636e1c2730669",
+  "ekey": "eca3bacf8824b297223235d627cb9d33",
+  "size": 18566896
+ },
+ "0x0800000000000CAC": {
+  "ckey": "f88f9626694186078041b4098ae5ec81",
+  "ekey": "24ae1d155ddc1852f4a5f533c0cb4a92",
+  "size": 19549184
+ },
+ "0x0800000000000CD0": {
+  "ckey": "a2c67e4a9c83f7eadc6f1df6efcb3af8",
+  "ekey": "122a42d56828261b449f8cc10e6b7eee",
+  "size": 22368
+ },
+ "0x0800000000000CD1": {
+  "ckey": "e93106f85e38f8d09575dcd6b06a47ac",
+  "ekey": "febbe167edb4c45206deab8c79a9eebb",
+  "size": 2637600
+ },
+ "0x0800000000000CD3": {
+  "ckey": "d85c9807159ba3d13f0c0d6e2a93a5d4",
+  "ekey": "b8b6c235724f829374ad7af3a541d5f5",
+  "size": 30864832
+ },
+ "0x0800000000000CD7": {
+  "ckey": "baa45d4ea2b0ba64a804c5fd41d5f4c8",
+  "ekey": "b336c0e51d7a10614882424554219330",
+  "size": 22410848
+ },
+ "0x0800000000000CDC": {
+  "ckey": "fe93dc8f95fca77baa629b34c389219b",
+  "ekey": "a7f58f99c38a1da82ca3f875c737238d",
+  "size": 2579984
+ },
+ "0x0800000000000CE6": {
+  "ckey": "06e20ee933a6f73a66dd55f73b1c2d56",
+  "ekey": "166d1103d014ce81c1865fb34f1b0a22",
+  "size": 3529168
+ },
+ "0x0800000000000CEB": {
+  "ckey": "dfa8001207ea303302387f0aaae2234f",
+  "ekey": "8f03e393291f1ad3aaa4301612c68c83",
+  "size": 1516240
+ },
+ "0x0800000000000CFE": {
+  "ckey": "dfa8001207ea303302387f0aaae2234f",
+  "ekey": "8f03e393291f1ad3aaa4301612c68c83",
+  "size": 1516240
+ },
+ "0x0800000000000CFF": {
+  "ckey": "fe93dc8f95fca77baa629b34c389219b",
+  "ekey": "a7f58f99c38a1da82ca3f875c737238d",
+  "size": 2579984
+ },
+ "0x0800000000000D86": {
+  "ckey": "4ae45e30568a954e716a1a0016dd5181",
+  "ekey": "16717580afa00997c410b765db732bdf",
+  "size": 9350336
+ },
+ "0x0800000000000DBC": {
+  "ckey": "81f8c81c589fafcddc00fecc24549d17",
+  "ekey": "bc5b1c01094938f75a01a555ee810646",
+  "size": 9363664
+ },
+ "0x0800000000000E49": {
+  "ckey": "e27e89426fb23806c76788744b872477",
+  "ekey": "7081b80aba7106f6447b0f8fdbf57dd1",
+  "size": 17696496
+ }
+}
