@@ -439,9 +439,7 @@ class Match:
         (assert 0xD62712AE, "Failed to deserialize component update ... 143E ... /123"; 143E has 1, 3, 4,
         22, 24, 25, 26, 28, 31, 35, 39, 43, 47, 49, 51, 69, 76, 78, 83, 86, 90, 97, 115, 119, 122, 127)."""
         components = world.health(bot.health, bot.health)
-        # Training Bots have no separate player entity to carry the normal combatant filter bits.
-        # Keep their team bit and add the player classification bits for client hostility presentation.
-        components[26] = [PLAYER_FILTER | (TEAM_BIT << bot.team)]
+        components[26] = [TEAM_BIT << bot.team]
         return world.create(
             origin, bot.body, components, flags=BODY_FLAGS, position=bot.position, rotation=_rotation(bot.yaw)
         )
