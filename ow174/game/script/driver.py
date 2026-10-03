@@ -486,14 +486,18 @@ class BodyScript:
         update = stream.delta(frame, snap, keys, self.frame)
         if self.hero == CASSIDY and self.frame % 60 == 0:
             log.info(
-                "Cassidy net frame=%d ult_key=%s base_last=%d last=%d pending=%s base_charge=%s snap_charge=%s",
+                "Cassidy net frame=%d charge_key=%s cost_key=%s base_last=%d last=%d pending=%s "
+                "base_charge=%s snap_charge=%s base_cost=%s snap_cost=%s",
                 self.frame,
                 ("var", 0, ULT_CHARGE) in keys,
+                ("var", 0, ULT_COST) in keys,
                 stream.base_last,
                 stream.last,
                 sorted(stream.pending),
                 (stream.base.vars.get((0, ULT_CHARGE)) if stream.base is not None else None),
                 snap.vars.get((0, ULT_CHARGE)),
+                (stream.base.vars.get((0, ULT_COST)) if stream.base is not None else None),
+                snap.vars.get((0, ULT_COST)),
             )
         self.report_count += 1
         self.reports.append((self.report_count, self.frame, stream.last, keys))
