@@ -733,13 +733,19 @@ class Combat:
             self._died(shooter, victim, critical, loadout)
 
     def _tell_hit(self, shooter, target: Target, dealt: float, flags: int, frame: int) -> None:
-        """25001 to the shooter: the hit marker and the target's health bar (frame: the shot's)."""
+        """25001 to the shooter: the hit marker and the target's health bar.
+
+        Diagnostic: the client's component-59 hit history ages these records in the world/game timeline.
+        Hitscan and melee used to put a command frame here while projectile hits used self.tick, mixing two
+        frame domains. Keep lag compensation on the command frame, but timestamp every 25001 consistently
+        with the current game tick.
+        """
         client = getattr(shooter, "client", None)
         if client is None:
             return
         value = {
             "+0x78": {"+0x0": {"+0x0": target.entity}, "+0x4": max(1, round(dealt)), "+0x8": flags},
-            "+0x84": frame & 0xFFFFFFFF,
+            "+0x84": self.tick & 0xFFFFFFFF,
         }
         client.queue_reliable(HIT, value)
 
