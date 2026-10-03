@@ -484,6 +484,17 @@ class BodyScript:
             correction = True
         frame, keys, snap = self.delta(stream.base, stream.touched(), self.frame, correction)
         update = stream.delta(frame, snap, keys, self.frame)
+        if self.hero == CASSIDY and self.frame % 60 == 0:
+            log.info(
+                "Cassidy net frame=%d ult_key=%s base_last=%d last=%d pending=%s base_charge=%s snap_charge=%s",
+                self.frame,
+                ("var", 0, ULT_CHARGE) in keys,
+                stream.base_last,
+                stream.last,
+                sorted(stream.pending),
+                (stream.base.vars.get((0, ULT_CHARGE)) if stream.base is not None else None),
+                snap.vars.get((0, ULT_CHARGE)),
+            )
         self.report_count += 1
         self.reports.append((self.report_count, self.frame, stream.last, keys))
         del self.reports[:-MAX_REPORTS]
