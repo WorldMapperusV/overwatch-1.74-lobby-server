@@ -732,7 +732,7 @@ class Combat:
         if killed:
             self._died(shooter, victim, critical, loadout)
 
-    def _tell_hit(self, shooter, target: Target, dealt: float, flags: int, frame: int) -> None:\n        \"\"\"25001 to the shooter: the hit marker and the target's health bar (frame: the shot's).\"\"\"\n        client = getattr(shooter, \"client\", None)\n        if client is None:\n            return\n        value = {\n            \"+0x78\": {\"+0x0\": {\"+0x0\": target.entity}, \"+0x4\": max(1, round(dealt)), \"+0x8\": flags},\n            \"+0x84\": frame & 0xFFFFFFFF,\n        }\n        client.queue_reliable(HIT, value)\n
+    def _tell_hit(self, shooter, target: Target, dealt: float, flags: int, frame: int) -> None:\n        """25001 to the shooter: the hit marker and the target's health bar (frame: the shot's)."""\n        client = getattr(shooter, "client", None)\n        if client is None:\n            return\n        value = {\n            "+0x78": {"+0x0": {"+0x0": target.entity}, "+0x4": max(1, round(dealt)), "+0x8": flags},\n            "+0x84": frame & 0xFFFFFFFF,\n        }\n        client.queue_reliable(HIT, value)\n
     def _kill_notice(self, killer, victim: int) -> None:
         """25005 to the killer: "ELIMINATED: <name>" (1126.07C; +0x89 assist would be 01F0.07C, +0x88 a
         score shown when above 0). Its handler (0x7FF7895D2B50) reads only +0x84, +0x88 and +0x89."""
